@@ -158,8 +158,8 @@ export default {
   justify-content: center;
   gap: 10px;
   border-radius: 10px;
-  background: rgba(11, 16, 24, 0.92);
-  color: rgba(226, 232, 240, 0.88);
+  background: rgba(24, 24, 24, 0.92);
+  color: var(--viz-ink);
 }
 
 .onnx-netron-loading-text {
@@ -176,7 +176,7 @@ export default {
   background: #ffffff;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.18s ease;
+  transition: opacity var(--transition);
 }
 
 .onnx-netron-frame-ready {

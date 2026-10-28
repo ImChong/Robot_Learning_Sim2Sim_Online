@@ -13,15 +13,15 @@
       class="model-io-toggle"
       :class="{ 'model-io-toggle-mobile': isSmallScreen }"
       size="small"
-      :color="expanded ? 'primary' : 'surface-variant'"
-      :variant="expanded ? 'flat' : 'elevated'"
+      :color="expanded ? 'primary' : 'surface'"
+      variant="flat"
       :aria-label="expanded ? t.collapsePanel : t.expandPanel"
       :aria-expanded="expanded"
       @click="togglePanel"
     >
-      <v-icon :icon="expanded ? 'mdi-graph-outline' : 'mdi-graph'" />
-      <span v-if="!isSmallScreen" class="ml-1">{{ expanded ? t.collapsePanel : t.expandPanel }}</span>
-      <span v-else class="ml-1">{{ t.expandShort }}</span>
+      <v-icon icon="ph-graph" />
+      <span v-if="!isSmallScreen" class="ml-2">{{ expanded ? t.collapsePanel : t.expandPanel }}</span>
+      <span v-else class="ml-2">{{ t.expandShort }}</span>
     </v-btn>
 
     <div
@@ -42,16 +42,15 @@
         }
       ]"
       :style="desktopPanelStyle"
-      elevation="8"
       role="region"
       :aria-label="t.panelTitle"
     >
       <v-card-title class="model-io-title">
         <span>{{ t.panelTitle }}</span>
-        <v-chip v-if="telemetry.ready" size="x-small" color="primary" variant="tonal">
+        <v-chip v-if="telemetry.ready" size="x-small" color="primary" variant="tonal" label>
           {{ t.live }}
         </v-chip>
-        <v-chip v-else size="x-small" color="on-surface" variant="outlined">
+        <v-chip v-else size="x-small" color="on-surface" variant="outlined" label>
           {{ t.waiting }}
         </v-chip>
         <v-spacer />
@@ -64,25 +63,25 @@
           class="model-io-tabs"
         >
           <v-btn value="graph" size="x-small" variant="text">
-            <v-icon icon="mdi-graph-outline" size="small" start />
+            <v-icon icon="ph-graph" size="small" start />
             {{ t.tabGraph }}
           </v-btn>
           <v-btn value="stack" size="x-small" variant="text">
-            <v-icon icon="mdi-layers-outline" size="small" :start="!isSmallScreen" />
+            <v-icon icon="ph-stack" size="small" :start="!isSmallScreen" />
             <span v-if="!isSmallScreen">{{ t.tabStack }}</span>
           </v-btn>
           <v-btn value="architecture" size="x-small" variant="text">
-            <v-icon icon="mdi-sitemap-outline" size="small" :start="!isSmallScreen" />
+            <v-icon icon="ph-tree-structure" size="small" :start="!isSmallScreen" />
             <span v-if="!isSmallScreen">{{ t.tabArchitecture }}</span>
           </v-btn>
           <v-btn value="scope" size="x-small" variant="text">
-            <v-icon icon="mdi-chart-line-variant" size="small" start />
+            <v-icon icon="ph-wave-sine" size="small" start />
             {{ t.tabScope }}
           </v-btn>
         </v-btn-toggle>
         <v-btn
           v-if="isSmallScreen"
-          icon="mdi-close"
+          icon="ph-x"
           size="x-small"
           variant="text"
           :aria-label="t.collapsePanel"
@@ -96,9 +95,6 @@
         </p>
 
         <template v-else>
-          <p v-if="!isSmallScreen && viewTab === 'graph'" class="text-caption text-medium-emphasis pipeline-hint">
-            {{ t.graphHint }}
-          </p>
           <ModelIOPipelineGraph
             v-show="viewTab === 'graph'"
             :telemetry="telemetry"
@@ -224,7 +220,7 @@ const MAX_SOURCE_NODE_NAMES = 3;
 
 const translations = {
   en: {
-    panelTitle: 'Model I/O Pipeline',
+    panelTitle: 'Model I/O pipeline',
     expandPanel: 'Model pipeline',
     collapsePanel: 'Hide pipeline',
     expandShort: 'Pipeline',
@@ -238,7 +234,6 @@ const translations = {
     tabStack: 'Stacking',
     tabArchitecture: 'Architecture',
     tabScope: 'Scope',
-    graphHint: 'Click a node to plot all of its signals · Obs Warehouse shows the tensor stacking · Policy net opens Architecture',
     stackHint: 'Click an observation block or one of its modules (row, sub-row or frame segment) to plot its live signals in the oscilloscope.',
     stackPlot: 'Click to plot in the oscilloscope',
     stackEmpty: 'The observation layout appears once the policy is running.',
@@ -286,7 +281,6 @@ const translations = {
     tabStack: '数据堆叠',
     tabArchitecture: '模型架构',
     tabScope: '示波器',
-    graphHint: '点击节点查看该节点全部信号曲线 · 点击观测仓库查看张量堆叠 · 点击策略网络打开模型架构',
     stackHint: '点击观测块或其中的模块（表格行 / 子行 / 帧色块）即可在示波器中查看对应的实时曲线。',
     stackPlot: '点击在示波器中查看曲线',
     stackEmpty: '策略就绪后显示观测张量的堆叠结构。',
@@ -696,7 +690,7 @@ export default {
   position: fixed;
   left: 16px;
   bottom: calc(16px + env(safe-area-inset-bottom, 0px) + var(--vvp-offset-bottom, 0px));
-  z-index: 1050;
+  z-index: var(--z-dock);
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -723,16 +717,15 @@ export default {
   position: fixed;
   left: 12px;
   bottom: v-bind(mobileToggleBottom);
-  z-index: 1051;
+  z-index: var(--z-dock-toggle);
   min-height: 40px;
   padding-inline: 12px;
-  border-radius: 18px !important;
-  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.22);
+  border-radius: var(--radius) !important;
 }
 
 .model-io-toggle-mobile :deep(.v-btn__overlay),
 .model-io-toggle-mobile :deep(.v-btn__underlay) {
-  border-radius: 18px;
+  border-radius: var(--radius);
 }
 
 .model-io-dock-sheet-open .model-io-toggle-mobile {
@@ -742,7 +735,7 @@ export default {
 .model-io-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 1095;
+  z-index: var(--z-sheet-backdrop);
   background: rgba(0, 0, 0, 0.45);
   backdrop-filter: blur(2px);
 }
@@ -750,15 +743,22 @@ export default {
 .model-io-toggle {
   text-transform: none;
   letter-spacing: 0;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+  border: 1px solid var(--border-strong);
+  box-shadow: var(--shadow-sm);
+}
+
+.model-io-toggle.bg-primary {
+  border-color: transparent;
 }
 
 .model-io-panel {
   display: flex;
   flex-direction: column;
-  border-radius: 14px;
+  border-radius: var(--radius);
   overflow: hidden;
   background: rgb(var(--v-theme-surface));
+  border: 1px solid var(--border-strong);
+  box-shadow: var(--shadow-md);
 }
 
 .model-io-panel-desktop {
@@ -779,11 +779,10 @@ export default {
   bottom: calc(12px + env(safe-area-inset-bottom, 0px) + var(--vvp-offset-bottom, 0px));
   width: auto !important;
   max-width: none;
-  max-height: min(58vh, calc(100dvh - var(--header-h, 58px) - 24px));
+  max-height: min(58dvh, calc(100dvh - var(--header-h, 56px) - 24px));
   margin: 0;
-  border-radius: 18px;
-  z-index: 1100;
-  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.22);
+  border-radius: var(--radius);
+  z-index: var(--z-sheet);
 }
 
 .model-io-panel-sheet .model-io-body {
@@ -797,8 +796,9 @@ export default {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 0.95rem;
-  padding: 12px 14px 8px;
+  font-size: 1rem;
+  line-height: 1.5rem;
+  padding: 12px 16px 8px;
   flex-shrink: 0;
 }
 
@@ -868,9 +868,9 @@ export default {
   height: 8px;
   border-right: 1.5px solid rgba(var(--v-theme-primary), 0.5);
   border-top: 1.5px solid rgba(var(--v-theme-primary), 0.5);
-  border-top-right-radius: 3px;
+  border-top-right-radius: 4px;
   pointer-events: none;
-  transition: border-color 0.18s ease;
+  transition: border-color var(--transition);
 }
 
 .model-io-resize-e:hover,

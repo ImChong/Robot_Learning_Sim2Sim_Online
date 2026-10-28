@@ -1,11 +1,32 @@
 export const themeStorageKey = 'rl-sim2sim-demo-theme'
 
-export function getStoredTheme() {
+/** 用户可选的主题模式；system 跟随 prefers-color-scheme。 */
+export const themeModes = ['dark', 'light', 'system']
+
+export function getStoredThemeMode() {
   if (typeof localStorage === 'undefined') {
     return 'dark'
   }
   const saved = localStorage.getItem(themeStorageKey)
-  return saved === 'light' ? 'light' : 'dark'
+  return themeModes.includes(saved) ? saved : 'dark'
+}
+
+export function prefersLightColorScheme() {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+    return false
+  }
+  return window.matchMedia('(prefers-color-scheme: light)').matches
+}
+
+export function resolveThemeMode(mode) {
+  if (mode === 'system') {
+    return prefersLightColorScheme() ? 'light' : 'dark'
+  }
+  return mode === 'light' ? 'light' : 'dark'
+}
+
+export function getStoredTheme() {
+  return resolveThemeMode(getStoredThemeMode())
 }
 
 export function applyDocumentTheme(name) {

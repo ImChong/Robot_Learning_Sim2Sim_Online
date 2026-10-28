@@ -54,10 +54,11 @@
       v-if="isSmallScreen"
       v-model="showSmallScreenAlert"
       type="info"
+      color="surface"
       variant="flat"
       density="compact"
       closable
-      class="small-screen-alert"
+      class="notice-alert small-screen-alert"
     >
       {{ t.mobileModeAlert }}
     </v-alert>
@@ -65,16 +66,20 @@
       v-if="isSafari"
       v-model="showSafariAlert"
       type="warning"
+      color="surface"
       variant="flat"
       density="compact"
       closable
-      class="safari-alert"
+      class="notice-alert safari-alert"
     >
       {{ t.safariAlert }}
     </v-alert>
   </div>
-  <div
+  <aside
+    id="controls-panel"
     ref="mobileControlsPanel"
+    tabindex="-1"
+    :aria-label="t.panelTitle"
     :class="['controls', {
       'controls-mobile': isSmallScreen,
       'controls-mobile-collapsed': isSmallScreen && isMobileControlsCollapsed,
@@ -89,7 +94,7 @@
       <v-card-title :class="['controls-title', { 'controls-title-mobile': isSmallScreen }]">
         <span>{{ t.panelTitle }}</span>
         <v-btn
-          size="x-small"
+          size="small"
           variant="text"
           color="primary"
           class="controls-toggle-btn"
@@ -108,10 +113,9 @@
             variant="text"
             size="small"
             color="primary"
-            class="text-capitalize"
           >
-            <v-icon icon="mdi-github" class="mr-1"></v-icon>
-            G1 AMP Walk/Run/Getup Training Code
+            <v-icon icon="ph-github-logo" class="mr-2"></v-icon>
+            G1 AMP Walk/Run/Getup training code
           </v-btn>
           <v-btn
             href="https://php-parkour.github.io/index.html"
@@ -120,10 +124,9 @@
             variant="text"
             size="small"
             color="primary"
-            class="text-capitalize"
           >
-            <v-icon icon="mdi-file-document-outline" class="mr-1"></v-icon>
-            G1 Perceptive Parkour Paper
+            <v-icon icon="ph-file-text" class="mr-2"></v-icon>
+            G1 Perceptive Parkour paper
           </v-btn>
           <v-btn
             href="https://github.com/Axellwppr/motion_tracking"
@@ -132,10 +135,9 @@
             variant="text"
             size="small"
             color="primary"
-            class="text-capitalize"
           >
-            <v-icon icon="mdi-github" class="mr-1"></v-icon>
-            G1 Tracking Training Code
+            <v-icon icon="ph-github-logo" class="mr-2"></v-icon>
+            G1 Tracking training code
           </v-btn>
           <v-btn
             href="https://acodedog.github.io/perceptive-bfm/"
@@ -144,10 +146,9 @@
             variant="text"
             size="small"
             color="primary"
-            class="text-capitalize"
           >
-            <v-icon icon="mdi-file-document-outline" class="mr-1"></v-icon>
-            G1 Perceptive BFM Paper
+            <v-icon icon="ph-file-text" class="mr-2"></v-icon>
+            G1 Perceptive BFM paper
           </v-btn>
         </div>
 
@@ -220,7 +221,7 @@
             <v-btn
               size="small"
               :variant="bfmModel === 'pmt' ? 'flat' : 'tonal'"
-              :color="bfmModel === 'pmt' ? 'success' : 'secondary'"
+              :color="bfmModel === 'pmt' ? 'primary' : 'secondary'"
               :disabled="state !== 1 || parkourLoading"
               @click="onBfmModelChange('pmt')"
             >
@@ -229,7 +230,7 @@
             <v-btn
               size="small"
               :variant="bfmModel === 'legacy' ? 'flat' : 'tonal'"
-              :color="bfmModel === 'legacy' ? 'warning' : 'secondary'"
+              :color="bfmModel === 'legacy' ? 'primary' : 'secondary'"
               :disabled="state !== 1 || parkourLoading"
               @click="onBfmModelChange('legacy')"
             >
@@ -310,10 +311,10 @@
             variant="text"
             size="small"
             color="primary"
-            class="text-capitalize mb-2"
+            class="mb-2 microduck-source-link"
           >
-            <v-icon icon="mdi-github" class="mr-1"></v-icon>
-            Microduck Sim2Sim Training Code
+            <v-icon icon="ph-github-logo" class="mr-2"></v-icon>
+            Microduck Sim2Sim training code
           </v-btn>
           <span class="status-name">{{ t.microduckStateMachine }}</span>
           <div class="microduck-state-grid mt-2" role="group" :aria-label="t.microduckStateMachine">
@@ -323,7 +324,6 @@
               :color="item.active ? 'primary' : 'secondary'"
               :variant="item.active ? 'flat' : 'tonal'"
               size="small"
-              class="text-capitalize"
               :data-test="`microduck-state-${item.value}`"
               :aria-pressed="item.active ? 'true' : 'false'"
               :disabled="state !== 1 || microduckStateSwitching"
@@ -558,7 +558,7 @@
               density="compact"
               hide-details
               accept=".json,application/json"
-              prepend-icon="mdi-upload"
+              prepend-icon="ph-upload-simple"
               multiple
               show-size
               :disabled="state !== 1"
@@ -657,7 +657,7 @@
         />
       </template>
     </v-card>
-  </div>
+  </aside>
   <v-dialog
     :model-value="showSimulationLoadingDialog"
     persistent
@@ -829,14 +829,14 @@ import {
 
 const translations = {
   en: {
-    mobileModeAlert: 'Mobile mode is enabled. The control panel has been compacted and docked to the bottom for touch interaction.',
-    safariAlert: 'Safari has lower memory limits, which can cause WASM to crash.',
-    panelTitle: 'General Tracking Demo',
+    mobileModeAlert: 'Mobile layout: the control panel is docked at the bottom for touch input.',
+    safariAlert: 'Safari has lower memory limits, so the WebAssembly simulation may crash.',
+    panelTitle: 'General tracking demo',
     expandControlPanel: 'Expand control panel',
     collapseControlPanel: 'Collapse control panel',
     expand: 'Expand',
     collapse: 'Collapse',
-    trainingCode: 'Training Code',
+    trainingCode: 'Training code',
     policy: 'Policy',
     selectPolicy: 'Select policy',
     compliance: 'Compliance',
@@ -847,7 +847,7 @@ const translations = {
     motionFinished: 'Motion "{name}" finished. Return to the default pose before starting another clip.',
     backToDefaultPose: 'Back to default pose',
     motionLocked: '"{name}" is still playing. Wait until it finishes and returns to default pose before switching.',
-    loadingMotionPresets: 'Loading motion presets...',
+    loadingMotionPresets: 'Loading motion presets…',
     useCustomizedMotions: 'Want to use customized motions?',
     customMotions: 'Custom motions',
     uploadMotionJson: 'Upload motion JSON',
@@ -858,14 +858,14 @@ const translations = {
     cameraFollow: 'Camera follow',
     velocityX: 'Velocity X',
     velocityY: 'Velocity Y',
-    yawRate: 'Yaw Rate',
+    yawRate: 'Yaw rate',
     renderScale: 'Render scale',
     groundReflection: 'Ground reflection',
-    simFreq: 'Sim Freq',
+    simFreq: 'Sim frequency',
     reset: 'Reset',
     loadingSimulationTitle: 'Loading Simulation Environment',
     loadingSimulationBody: 'Loading MuJoCo and ONNX policy, please wait',
-    loadingErrorTitle: 'Simulation Environment Loading Error',
+    loadingErrorTitle: 'The simulation failed to load',
     runtimeError: 'Unexpected runtime error, please refresh the page.',
     webAssemblyUnsupported: 'Your browser does not support WebAssembly. Please use a recent version of Chrome, Edge, or Firefox.',
     policyDescription: 'Tracking policy with compliance input enabled.',
@@ -985,7 +985,7 @@ const translations = {
     microduckSource: 'Policies and MJCF from pollen-robotics/microduck and microduck_rl.'
   },
   zh: {
-    mobileModeAlert: '已启用移动端模式，控制面板已精简并停靠到底部，便于触控操作。',
+    mobileModeAlert: '移动端布局：控制面板停靠在底部，便于触控操作。',
     safariAlert: 'Safari 的内存限制较低，可能导致 WASM 崩溃。',
     panelTitle: '通用跟踪演示',
     expandControlPanel: '展开控制面板',
@@ -1021,7 +1021,7 @@ const translations = {
     reset: '重置',
     loadingSimulationTitle: '正在加载仿真环境',
     loadingSimulationBody: '正在加载 MuJoCo 和 ONNX 策略，请稍候',
-    loadingErrorTitle: '仿真环境加载错误',
+    loadingErrorTitle: '仿真环境加载失败',
     runtimeError: '发生意外运行时错误，请刷新页面。',
     webAssemblyUnsupported: '当前浏览器不支持 WebAssembly。请使用较新版本的 Chrome、Edge 或 Firefox。',
     policyDescription: '已启用顺应性输入的跟踪策略。',
@@ -3246,38 +3246,39 @@ export default {
 <style scoped>
 .parkour-frame-wrap {
   position: fixed;
-  top: var(--header-h, 58px);
+  top: var(--header-h, 56px);
   left: 0;
   right: 0;
   bottom: 0;
-  z-index: 500;
-  background: #0f172a;
+  z-index: var(--z-embed);
+  background: var(--bg);
 }
 
 .bfm-mobile-blocked {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #0a0a0f;
-  padding: 24px;
+  padding: 24px 24px 32px;
 }
 
 .bfm-mobile-blocked-inner {
   max-width: 22rem;
   text-align: center;
-  color: #cbd5e1;
+  color: var(--text-muted);
 }
 
 .bfm-mobile-blocked-title {
-  color: #818cf8;
+  color: var(--text);
   font-size: 1.25rem;
+  line-height: 1.75rem;
   font-weight: 600;
+  letter-spacing: -0.01em;
   margin-bottom: 12px;
 }
 
 .bfm-mobile-blocked-text {
-  font-size: 0.95rem;
-  line-height: 1.5;
+  font-size: 1rem;
+  line-height: 1.5rem;
   margin: 0;
 }
 
@@ -3289,13 +3290,13 @@ export default {
 }
 .parkour-depth-diagnostic-hints {
   margin: 0;
-  padding-left: 1.1rem;
+  padding-left: 16px;
 }
 
 .parkour-depth-diagnostic-text :deep(textarea) {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 12px;
-  line-height: 1.35;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  line-height: 1rem;
 }
 
 .parkour-controls {
@@ -3311,14 +3312,14 @@ export default {
 .parkour-keys {
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: 6px 10px;
+  gap: 8px 12px;
   align-items: center;
 }
 
 .microduck-state-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px;
+  gap: 8px;
 }
 
 .microduck-state-grid .v-btn {
@@ -3328,21 +3329,34 @@ export default {
 
 .parkour-key {
   justify-self: start;
-  background: rgba(var(--v-theme-on-surface), 0.08);
-  border: 1px solid rgba(var(--v-theme-on-surface), 0.18);
+  min-width: 24px;
+  background: rgba(var(--v-theme-on-surface), 0.06);
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.16);
+  border-bottom-width: 2px;
   border-radius: 6px;
-  padding: 1px 8px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 0.72rem;
-  font-weight: 700;
-  line-height: 1.6;
+  padding: 2px 8px;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1rem;
+  text-align: center;
 }
 
 .controls {
   position: fixed;
-  top: calc(var(--header-h, 58px) + 20px);
-  right: 20px;
-  z-index: 1000;
+  top: calc(var(--header-h, 56px) + 16px);
+  right: 16px;
+  z-index: var(--z-panel);
+  border-radius: var(--radius);
+}
+
+.controls:focus {
+  outline: none;
+}
+
+.controls:focus-visible {
+  outline: 2px solid rgb(var(--v-theme-primary));
+  outline-offset: 2px;
 }
 
 .controls-mobile {
@@ -3362,7 +3376,7 @@ export default {
 
 .global-alerts {
   position: fixed;
-  top: calc(var(--header-h, 58px) + 20px);
+  top: calc(var(--header-h, 56px) + 16px);
   left: 16px;
   right: 16px;
   max-width: 520px;
@@ -3370,19 +3384,30 @@ export default {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  z-index: 1200;
+  z-index: var(--z-alerts);
 }
 
-.small-screen-alert {
+/* 系统提示：中性表面 + 细边框，只让图标带语义色，避免整块饱和蓝。 */
+.notice-alert {
   width: 100%;
+  border: 1px solid var(--border-strong);
+  box-shadow: var(--shadow-md);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
 }
 
-.safari-alert {
-  width: 100%;
+.small-screen-alert :deep(.v-alert__prepend) {
+  color: rgb(var(--v-theme-primary));
+}
+
+.safari-alert :deep(.v-alert__prepend) {
+  color: rgb(var(--v-theme-warning));
 }
 
 .controls-card {
-  max-height: calc(100vh - 40px);
+  max-height: calc(100dvh - 40px);
+  border: 1px solid var(--border-strong);
+  box-shadow: var(--shadow-md);
 }
 
 .controls-card-resizable {
@@ -3443,9 +3468,9 @@ export default {
   height: 8px;
   border-left: 1.5px solid rgba(var(--v-theme-primary), 0.45);
   border-bottom: 1.5px solid rgba(var(--v-theme-primary), 0.45);
-  border-bottom-left-radius: 3px;
+  border-bottom-left-radius: 4px;
   pointer-events: none;
-  transition: border-color 0.18s ease;
+  transition: border-color var(--transition);
 }
 
 .controls-resize-w:hover,
@@ -3453,6 +3478,10 @@ export default {
 .controls-resize-s:hover,
 .controls-resize-s:active {
   background-color: rgba(var(--v-theme-primary), 0.12);
+}
+
+.controls-resize-handle {
+  transition: background-color var(--transition);
 }
 
 .controls-resize-sw:hover::before,
@@ -3465,6 +3494,7 @@ export default {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  padding: 16px 16px 8px;
 }
 
 .controls-title-mobile {
@@ -3477,9 +3507,8 @@ export default {
 }
 
 .controls-mobile .controls-card {
-  max-height: min(52vh, 420px);
-  border-radius: 18px;
-  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.22);
+  max-height: min(52dvh, 420px);
+  border-radius: var(--radius);
   display: flex;
   flex-direction: column;
 }
@@ -3489,7 +3518,7 @@ export default {
 }
 
 .controls-body {
-  max-height: calc(100vh - 160px);
+  max-height: calc(100dvh - 160px);
   overflow-y: auto;
   overscroll-behavior: contain;
 }
@@ -3497,12 +3526,15 @@ export default {
 .training-links {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
+  align-items: stretch;
+  gap: 0;
+  margin: 0 -8px;
 }
 
-.training-links .v-btn {
+.training-links .v-btn,
+.microduck-source-link {
   justify-content: flex-start;
+  font-weight: 500;
 }
 
 .training-links :deep(.v-btn__content) {
@@ -3517,8 +3549,8 @@ export default {
 }
 
 .controls-mobile :deep(.v-card-title) {
-  font-size: 0.95rem;
-  line-height: 1.2;
+  font-size: 1rem;
+  line-height: 1.5rem;
   padding: 12px 16px 8px;
   flex-shrink: 0;
 }
@@ -3550,7 +3582,7 @@ export default {
 }
 
 .controls-mobile :deep(.v-btn) {
-  min-height: 34px;
+  min-height: 32px;
 }
 
 .controls-mobile .motion-groups {
@@ -3576,12 +3608,12 @@ export default {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 
 .motion-chip {
   text-transform: none;
-  font-size: 0.7rem;
+  font-size: 0.75rem;
 }
 
 .status-legend {
@@ -3610,7 +3642,7 @@ export default {
 .upload-toggle {
   padding: 0;
   min-height: unset;
-  font-size: 0.85rem;
+  font-size: 0.875rem;
   text-transform: none;
 }
 
@@ -3645,7 +3677,7 @@ export default {
 
 @media (max-width: 640px), (max-height: 760px) {
   .global-alerts {
-    top: calc(var(--header-h, 58px) + 12px);
+    top: calc(var(--header-h, 56px) + 12px);
     left: 12px;
     right: 12px;
   }

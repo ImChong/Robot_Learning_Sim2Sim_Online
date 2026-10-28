@@ -66,7 +66,7 @@
                         class="stack-name-node"
                       >· {{ soleModuleTitle(block) }}</span>
                       <v-icon
-                        icon="mdi-chart-line-variant"
+                        icon="ph-wave-sine"
                         size="11"
                         class="stack-name-icon"
                       />
@@ -108,7 +108,7 @@
                       </span>
                       <span class="stack-name-text">{{ mod.title }}</span>
                       <v-icon
-                        icon="mdi-chart-line-variant"
+                        icon="ph-wave-sine"
                         size="10"
                         class="stack-name-icon"
                       />
@@ -366,14 +366,14 @@ export default {
 
 <style scoped>
 .stack-shell {
-  --stack-surface: #0b1018;
-  --stack-panel: #111827;
+  --stack-surface: var(--viz-bg);
+  --stack-panel: var(--viz-panel);
   --stack-mark: #4bacd6;
   --stack-seg-a: #8ecbe2;
   --stack-seg-b: #3f9fc9;
   --stack-probe: #00d992;
-  --stack-ink: rgba(226, 232, 240, 0.92);
-  --stack-ink-muted: rgba(148, 163, 184, 0.78);
+  --stack-ink: var(--viz-ink);
+  --stack-ink-muted: var(--viz-ink-muted);
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -391,7 +391,7 @@ export default {
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: var(--font-mono);
 }
 
 .stack-stat {
@@ -472,7 +472,7 @@ export default {
 .stack-table {
   width: 100%;
   border-collapse: collapse;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 0.65rem;
 }
 
@@ -590,7 +590,7 @@ export default {
 .stack-name-icon {
   flex: 0 0 auto;
   opacity: 0.4;
-  transition: opacity 0.15s ease;
+  transition: opacity var(--transition);
 }
 
 .stack-row-clickable:hover .stack-name-text,
@@ -649,7 +649,7 @@ export default {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 0.6rem;
 }
 
@@ -708,7 +708,7 @@ export default {
 }
 
 .stack-seg-gap {
-  background: rgba(148, 163, 184, 0.25);
+  background: rgba(155, 155, 155, 0.25);
 }
 
 .stack-seg-muted {
@@ -729,7 +729,7 @@ export default {
 
 .stack-seg-label {
   font-size: 0.55rem;
-  color: #0b1018;
+  color: var(--viz-bg);
   padding: 0 3px;
   max-width: 100%;
   overflow: hidden;
@@ -743,7 +743,7 @@ export default {
   gap: 6px;
   margin: 2px 0 0;
   padding-left: 38px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 0.58rem;
   color: var(--stack-ink-muted);
 }
@@ -751,7 +751,7 @@ export default {
 .stack-axis-line {
   flex: 1 1 auto;
   height: 1px;
-  background: rgba(148, 163, 184, 0.3);
+  background: rgba(155, 155, 155, 0.3);
 }
 
 .stack-tooltip {
@@ -760,8 +760,8 @@ export default {
   max-width: 200px;
   padding: 5px 7px;
   border-radius: 6px;
-  border: 1px solid rgba(148, 163, 184, 0.35);
-  background: rgba(15, 23, 42, 0.97);
+  border: 1px solid var(--viz-line);
+  background: rgba(31, 31, 31, 0.97);
   color: var(--stack-ink);
   font-size: 0.6rem;
   line-height: 1.35;
@@ -770,12 +770,12 @@ export default {
 }
 
 .stack-tooltip-title {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: var(--font-mono);
 }
 
 .stack-tooltip-line {
   color: var(--stack-ink-muted);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: var(--font-mono);
 }
 
 .stack-tooltip-desc {
