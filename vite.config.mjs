@@ -27,11 +27,11 @@ export default defineConfig({
     Components(),
     Fonts({
       fontsource: {
+        // Geist Sans 在 src/styles/fonts.css 里带 unicode-range 单独声明。
         families: [
           {
-            name: 'Roboto',
-            weights: [300, 400, 500, 700],
-            subsets: ['latin'],
+            name: 'Geist Mono',
+            weights: [400, 500, 600],
           },
         ],
       },

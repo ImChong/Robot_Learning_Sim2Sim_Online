@@ -19,7 +19,7 @@
         </button>
         <v-icon
           v-if="idx < stages.length - 1"
-          icon="mdi-chevron-right"
+          icon="ph-caret-right"
           size="14"
           class="pipeline-stage-arrow"
           aria-hidden="true"
@@ -248,7 +248,7 @@
           :aria-label="text.zoomOut"
           @click="zoomBy(1 / ZOOM_STEP)"
         >
-          <v-icon icon="mdi-minus" size="16" />
+          <v-icon icon="ph-minus" size="16" />
         </button>
         <button
           type="button"
@@ -257,7 +257,7 @@
           :aria-label="text.zoomIn"
           @click="zoomBy(ZOOM_STEP)"
         >
-          <v-icon icon="mdi-plus" size="16" />
+          <v-icon icon="ph-plus" size="16" />
         </button>
         <button
           type="button"
@@ -267,7 +267,7 @@
           :aria-label="text.fitView"
           @click="resetView"
         >
-          <v-icon icon="mdi-fit-to-screen-outline" size="16" />
+          <v-icon icon="ph-frame-corners" size="16" />
         </button>
       </div>
     </div>
@@ -1018,7 +1018,7 @@ export default {
   gap: 6px;
   flex-shrink: 0;
   padding: 3px 10px 3px 4px;
-  border-radius: 999px;
+  border-radius: 6px;
   border: 1px solid rgba(var(--v-theme-on-surface), 0.14);
   background: rgba(var(--v-theme-on-surface), 0.04);
   color: rgba(var(--v-theme-on-surface), 0.82);
@@ -1026,7 +1026,7 @@ export default {
   line-height: 1.2;
   white-space: nowrap;
   cursor: pointer;
-  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  transition: background-color var(--transition), border-color var(--transition), color var(--transition);
 }
 
 .pipeline-stage:hover,
@@ -1048,7 +1048,7 @@ export default {
   justify-content: center;
   width: 18px;
   height: 18px;
-  border-radius: 50%;
+  border-radius: 4px;
   font-size: 0.68rem;
   font-weight: 700;
   background: rgba(var(--v-theme-primary), 0.22);
@@ -1083,9 +1083,9 @@ export default {
 .pipeline-viewport {
   position: relative;
   max-width: 100%;
-  border-radius: 10px;
-  border: 1px solid rgba(var(--v-theme-primary), 0.2);
-  background: #0b1018;
+  border-radius: 12px;
+  border: 1px solid var(--viz-line);
+  background: var(--viz-bg);
   overscroll-behavior: contain;
 }
 
@@ -1144,10 +1144,10 @@ export default {
   font-size: 0.7rem;
   font-weight: 600;
   letter-spacing: 0.02em;
-  color: rgba(255, 255, 255, 0.78);
-  background: rgba(11, 16, 24, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 999px;
+  color: var(--viz-ink-muted);
+  background: rgba(24, 24, 24, 0.85);
+  border: 1px solid var(--viz-line);
+  border-radius: 6px;
   overflow: hidden;
 }
 
@@ -1158,10 +1158,10 @@ export default {
   flex-shrink: 0;
   width: 16px;
   height: 16px;
-  border-radius: 50%;
+  border-radius: 4px;
   font-size: 0.64rem;
   background: rgba(var(--v-theme-primary), 0.3);
-  color: #e2e8f0;
+  color: var(--viz-ink);
 }
 
 .pipeline-lane-header-label {
@@ -1176,6 +1176,7 @@ export default {
 
 .pipeline-lane-header-active .pipeline-lane-header-step {
   background: rgb(var(--v-theme-primary));
+  color: rgb(var(--v-theme-on-primary));
 }
 
 .pipeline-viewport-zoom {
@@ -1197,11 +1198,11 @@ export default {
 }
 
 .pipeline-viewport-animate .pipeline-transform {
-  transition: transform 0.26s ease;
+  transition: transform 0.26s var(--ease);
 }
 
 .pipeline-viewport-animate .pipeline-lane-header {
-  transition: left 0.26s ease, width 0.26s ease;
+  transition: left 0.26s var(--ease), width 0.26s var(--ease);
 }
 
 .pipeline-canvas {
@@ -1213,9 +1214,9 @@ export default {
 .pipeline-grid {
   position: absolute;
   inset: 0;
-  background-color: #0b1018;
+  background-color: var(--viz-bg);
   background-image:
-    radial-gradient(circle at 1px 1px, rgba(148, 163, 184, 0.14) 1px, transparent 0);
+    radial-gradient(circle at 1px 1px, var(--viz-grid) 1px, transparent 0);
   background-size: 18px 18px;
   pointer-events: none;
 }
@@ -1229,9 +1230,9 @@ export default {
 
 .pipeline-edge {
   fill: none;
-  stroke: rgba(100, 116, 139, 0.55);
+  stroke: rgba(155, 155, 155, 0.4);
   stroke-width: 1.5;
-  transition: stroke 0.2s ease;
+  transition: stroke var(--transition);
 }
 
 .pipeline-edge-active {
@@ -1241,13 +1242,13 @@ export default {
 }
 
 .pipeline-edge-scope {
-  stroke: rgba(76, 179, 212, 0.75);
+  stroke: rgba(var(--v-theme-primary), 0.75);
   stroke-width: 1.5;
   stroke-dasharray: 6 4;
 }
 
 .pipeline-edge-loopback {
-  stroke: rgba(251, 191, 36, 0.7);
+  stroke: rgba(155, 155, 155, 0.72);
   stroke-width: 1.5;
   stroke-dasharray: 8 5;
 }
@@ -1275,12 +1276,12 @@ export default {
 
 .pipeline-node,
 .pipeline-edge {
-  transition: opacity 0.15s ease;
+  transition: opacity var(--transition);
 }
 
 .pipeline-node-scope .pipeline-node-card {
-  border-color: rgba(76, 179, 212, 0.55);
-  background: linear-gradient(180deg, rgba(15, 35, 48, 0.95) 0%, rgba(10, 20, 30, 0.98) 100%);
+  border-color: rgba(var(--v-theme-primary), 0.55);
+  background: var(--viz-panel);
 }
 
 .pipeline-node {
@@ -1321,8 +1322,8 @@ export default {
   overflow: hidden;
   padding: 6px 8px;
   border-radius: 8px;
-  border: 1px solid rgba(71, 85, 105, 0.65);
-  background: linear-gradient(180deg, rgba(30, 41, 59, 0.95) 0%, rgba(15, 23, 42, 0.98) 100%);
+  border: 1px solid var(--viz-line);
+  background: var(--viz-panel);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
   cursor: default;
   user-select: text;
@@ -1339,12 +1340,12 @@ export default {
 
 .pipeline-node-card-clickable:hover {
   border-color: rgba(var(--v-theme-primary), 0.55);
-  background: linear-gradient(180deg, rgba(35, 48, 68, 0.96) 0%, rgba(18, 28, 44, 0.99) 100%);
+  background: var(--viz-raised);
 }
 
 .pipeline-node-probed .pipeline-node-card {
-  border-color: rgba(76, 179, 212, 0.55);
-  box-shadow: 0 0 0 1px rgba(76, 179, 212, 0.2), 0 4px 14px rgba(0, 0, 0, 0.4);
+  border-color: rgba(var(--v-theme-primary), 0.8);
+  box-shadow: 0 0 0 1px rgba(var(--v-theme-primary), 0.3), 0 4px 14px rgba(0, 0, 0, 0.4);
 }
 
 .pipeline-node-scope-hint {
@@ -1352,7 +1353,7 @@ export default {
   top: 7px;
   right: 4px;
   /* The canvas is dark in both themes, so do not inherit the theme colour. */
-  color: #94a3b8;
+  color: var(--viz-ink-muted);
   opacity: 0.8;
   pointer-events: none;
 }
@@ -1405,7 +1406,7 @@ export default {
 .pipeline-node-title {
   font-size: 0.72rem;
   font-weight: 700;
-  color: #e2e8f0;
+  color: var(--viz-ink);
   line-height: 1.25;
   white-space: nowrap;
   overflow: hidden;
@@ -1414,7 +1415,7 @@ export default {
 
 .pipeline-node-subtitle {
   font-size: 0.62rem;
-  color: #94a3b8;
+  color: var(--viz-ink-muted);
   margin-top: 2px;
   white-space: nowrap;
   overflow: hidden;
@@ -1431,16 +1432,16 @@ export default {
 .pipeline-node-chip {
   padding: 0 6px;
   border-radius: 4px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 0.62rem;
   line-height: 15px;
-  color: #94a3b8;
-  background: rgba(148, 163, 184, 0.12);
+  color: var(--viz-ink-muted);
+  background: rgba(155, 155, 155, 0.12);
 }
 
 .pipeline-node-chip-probed {
-  color: rgba(76, 179, 212, 0.95);
-  background: rgba(76, 179, 212, 0.16);
+  color: rgb(var(--v-theme-primary));
+  background: rgba(var(--v-theme-primary), 0.16);
 }
 
 .pipeline-overlay {
@@ -1460,9 +1461,9 @@ export default {
   padding: 4px 10px;
   border-radius: 8px;
   font-size: 0.66rem;
-  color: rgba(226, 232, 240, 0.78);
-  background: rgba(11, 16, 24, 0.82);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: var(--viz-ink-muted);
+  background: rgba(24, 24, 24, 0.85);
+  border: 1px solid var(--viz-line);
   pointer-events: none;
 }
 
@@ -1482,12 +1483,12 @@ export default {
 }
 
 .pipeline-legend-loopback {
-  stroke: rgba(251, 191, 36, 0.8);
+  stroke: rgba(155, 155, 155, 0.8);
   stroke-dasharray: 5 3;
 }
 
 .pipeline-legend-scope {
-  stroke: rgba(76, 179, 212, 0.85);
+  stroke: rgba(var(--v-theme-primary), 0.75);
   stroke-dasharray: 4 3;
 }
 
@@ -1505,10 +1506,11 @@ export default {
   width: 28px;
   height: 28px;
   border-radius: 8px;
-  color: #e2e8f0;
-  background: rgba(11, 16, 24, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--viz-ink);
+  background: rgba(24, 24, 24, 0.85);
+  border: 1px solid var(--viz-line);
   cursor: pointer;
+  transition: border-color var(--transition);
 }
 
 .pipeline-view-btn:hover,
@@ -1521,13 +1523,13 @@ export default {
   display: flex;
   gap: 6px;
   margin-top: 3px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 0.6rem;
   line-height: 1.3;
 }
 
 .pipeline-node-line-probed .pipeline-node-key {
-  color: rgba(76, 179, 212, 0.95);
+  color: rgb(var(--v-theme-primary));
 }
 
 .pipeline-shell-mobile .pipeline-node-title {
@@ -1539,14 +1541,14 @@ export default {
 }
 
 .pipeline-node-key {
-  color: #64748b;
+  color: var(--viz-ink-faint);
   white-space: nowrap;
   flex: 0 1 auto;
   min-width: 0;
 }
 
 .pipeline-node-val {
-  color: #94a3b8;
+  color: var(--viz-ink-muted);
   white-space: nowrap;
   flex-shrink: 0;
   margin-left: auto;
@@ -1554,7 +1556,7 @@ export default {
 }
 
 .pipeline-node-meta {
-  color: #94a3b8;
+  color: var(--viz-ink-muted);
 }
 
 .pipeline-port {
@@ -1563,8 +1565,8 @@ export default {
   border-radius: 50%;
   flex-shrink: 0;
   align-self: center;
-  background: #1e293b;
-  border: 2px solid #475569;
+  background: var(--viz-raised);
+  border: 2px solid var(--viz-ink-faint);
 }
 
 .pipeline-node-live .pipeline-port {

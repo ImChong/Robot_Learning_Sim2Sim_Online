@@ -3,18 +3,29 @@
 <head>
   <meta charset="UTF-8">
   <style>
-    html { color-scheme: dark; background: #151515; color: #eceae5; }
+    html { color-scheme: dark; background: #181818; color: #eceae5; }
     html[data-theme="light"] { color-scheme: light; background: #fbfbfa; color: #2f2d29; }
   </style>
   <script src="/theme-boot.js"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <meta name="description" content="Robot Learning Sim2Sim Online - Interactive web demonstration of reinforcement learning humanoid control policies using MuJoCo and ONNX.">
+  <meta name="description" content="Run reinforcement learning humanoid policies (Unitree G1 AMP, motion tracking, perceptive parkour) live in your browser with MuJoCo WebAssembly and ONNX Runtime.">
+  <meta name="theme-color" content="#181818" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#fbfbfa" media="(prefers-color-scheme: light)">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Robot Learning Sim2Sim Online">
+  <meta property="og:title" content="Robot Learning Sim2Sim Online | 人形机器人强化学习在线推理">
+  <meta property="og:description" content="Run reinforcement learning humanoid policies live in your browser with MuJoCo WebAssembly and ONNX Runtime.">
+  <meta property="og:url" content="https://imchong.github.io/Robot_Learning_Sim2Sim_Online/">
+  <meta property="og:image" content="https://imchong.github.io/Robot_Learning_Sim2Sim_Online/og-image.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <meta http-equiv="Content-Security-Policy" content="
     default-src 'self';
     script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval' 'sha256-EwEmn5/Yk94vfqKjRO73pQkireD8QWcl6pJ+osMbKSc=' https://www.googletagmanager.com;
-    style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
-    font-src 'self' https://fonts.gstatic.com data:;
+    style-src 'self' 'unsafe-inline';
+    font-src 'self' data:;
     img-src 'self' data: blob: https://www.google-analytics.com;
     connect-src 'self' https://www.google-analytics.com https://analytics.google.com https://stats.g.doubleclick.net https://region1.google-analytics.com;
     frame-src 'self';
@@ -25,14 +36,7 @@
     block-all-mixed-content;
   ">
   <title>Robot Learning Sim2Sim Online | 人形机器人强化学习在线推理</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>" />
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link id="google-fonts" href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Noto+Sans+SC:wght@400;700&display=swap" rel="stylesheet" media="print">
-  <script src="/font-boot.js" defer></script>
-  <noscript>
-    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Noto+Sans+SC:wght@400;700&display=swap" rel="stylesheet">
-  </noscript>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <!-- Google tag (gtag.js) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-VNYB01S2HF"></script>
   <script>

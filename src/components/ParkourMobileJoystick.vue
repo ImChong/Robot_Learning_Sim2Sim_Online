@@ -32,7 +32,7 @@
           data-test="parkour-pause-mobile"
           @click.stop="onPauseClick"
         >
-          <v-icon icon="mdi-pause" size="22" />
+          <v-icon icon="ph-pause" size="22" />
         </button>
         <button
           type="button"
@@ -42,7 +42,7 @@
           data-test="parkour-reset-run-mobile"
           @click.stop="onResetRunClick"
         >
-          <v-icon icon="mdi-replay" size="22" />
+          <v-icon icon="ph-arrow-counter-clockwise" size="22" />
         </button>
       </div>
     </div>
@@ -230,10 +230,10 @@ export default {
   --parkour-orbit-radius: calc(var(--parkour-stick-size) / 2 + var(--parkour-btn-size) / 2 + 14px);
 
   position: fixed;
-  right: 20px;
-  z-index: 1050;
-  bottom: calc(20px + constant(safe-area-inset-bottom) + var(--vvp-offset-bottom, 0px));
-  bottom: calc(20px + env(safe-area-inset-bottom, 0px) + var(--vvp-offset-bottom, 0px));
+  right: 16px;
+  z-index: var(--z-dock);
+  bottom: calc(16px + constant(safe-area-inset-bottom) + var(--vvp-offset-bottom, 0px));
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px) + var(--vvp-offset-bottom, 0px));
   touch-action: none;
   user-select: none;
   pointer-events: auto;
@@ -352,6 +352,7 @@ export default {
   padding: 0;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
+  transition: background-color var(--transition), border-color var(--transition);
 }
 
 .parkour-mobile-controls__action-btn:active:not(:disabled) {

@@ -38,7 +38,7 @@
           :color="paused ? 'warning' : 'primary'"
           @click="$emit('toggle-pause')"
         >
-          <v-icon :icon="paused ? 'mdi-play' : 'mdi-pause'" size="small" start />
+          <v-icon :icon="paused ? 'ph-play' : 'ph-pause'" size="small" start />
           {{ paused ? resumeLabel : pauseLabel }}
         </v-btn>
         <v-btn
@@ -102,7 +102,7 @@
             :aria-label="`${removeSeriesLabel}: ${series.label}`"
             @click="$emit('remove-probe', series.id)"
           >
-            <v-icon icon="mdi-close" size="12" />
+            <v-icon icon="ph-x" size="12" />
           </button>
         </div>
       </div>
@@ -306,9 +306,9 @@ export default {
         return;
       }
 
-      ctx.fillStyle = '#0b1018';
+      ctx.fillStyle = '#181818';
       ctx.fillRect(0, 0, width, height);
-      ctx.fillStyle = '#111827';
+      ctx.fillStyle = '#1f1f1f';
       ctx.fillRect(pad.left, pad.top, plotW, plotH);
 
       const { snapshot } = this;
@@ -323,8 +323,8 @@ export default {
       const tSpan = Math.max(1e-6, tMax - tMin);
       const vSpan = Math.max(1e-6, vMax - vMin);
 
-      const gridColor = 'rgba(148, 163, 184, 0.14)';
-      const axisColor = 'rgba(148, 163, 184, 0.55)';
+      const gridColor = 'rgba(155, 155, 155, 0.14)';
+      const axisColor = 'rgba(155, 155, 155, 0.55)';
       ctx.strokeStyle = gridColor;
       ctx.lineWidth = 1;
       for (let i = 0; i <= 4; i++) {
@@ -343,7 +343,7 @@ export default {
       }
 
       ctx.fillStyle = axisColor;
-      ctx.font = '10px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
+      ctx.font = "10px 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
       ctx.textAlign = 'right';
       ctx.textBaseline = 'middle';
       for (let i = 0; i <= 4; i++) {
@@ -416,7 +416,7 @@ export default {
   align-items: center;
   gap: 6px;
   font-size: 0.72rem;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: var(--font-mono);
   color: rgba(var(--v-theme-on-surface), 0.7);
 }
 
@@ -450,9 +450,9 @@ export default {
   width: 42px;
   padding: 1px 4px;
   border-radius: 6px;
-  border: 1px solid rgba(148, 163, 184, 0.35);
-  background: rgba(15, 23, 42, 0.75);
-  color: rgba(226, 232, 240, 0.92);
+  border: 1px solid var(--viz-line);
+  background: rgba(31, 31, 31, 0.75);
+  color: var(--viz-ink);
   font: inherit;
   font-size: 0.72rem;
   text-align: center;
@@ -493,7 +493,7 @@ export default {
   border-radius: 10px;
   border: 1px solid rgba(var(--v-theme-primary), 0.2);
   overflow: hidden;
-  background: #0b1018;
+  background: var(--viz-bg);
 }
 
 .scope-canvas {
@@ -509,7 +509,7 @@ export default {
   align-items: center;
   justify-content: center;
   font-size: 0.75rem;
-  color: rgba(148, 163, 184, 0.75);
+  color: var(--viz-ink-muted);
   pointer-events: none;
 }
 
@@ -528,10 +528,10 @@ export default {
   align-items: center;
   gap: 4px;
   width: 100%;
-  border: 1px solid rgba(71, 85, 105, 0.55);
+  border: 1px solid var(--viz-line);
   border-radius: 8px;
-  background: rgba(15, 23, 42, 0.65);
-  color: #e2e8f0;
+  background: rgba(31, 31, 31, 0.65);
+  color: var(--viz-ink);
   padding: 6px 8px;
   text-align: left;
 }
@@ -545,7 +545,7 @@ export default {
 }
 
 .scope-legend-item-hidden .scope-legend-label {
-  color: rgba(148, 163, 184, 0.65);
+  color: var(--viz-ink-muted);
 }
 
 .scope-legend-toggle {
