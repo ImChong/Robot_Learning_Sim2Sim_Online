@@ -27,6 +27,7 @@
     "@fontsource/geist-mono": "5.3.0",
     "@fontsource/geist-sans": "5.3.0",
     "@phosphor-icons/web": "2.1.2",
+    "katex": "0.19.0",
     "mujoco-js": "^0.0.7",
     "onnxruntime-web": "^1.21.1",
     "three": "0.151.3",

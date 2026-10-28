@@ -14,6 +14,7 @@ import {
   resolveSignalValue,
   scopeChannelColor,
   setScopeProbes,
+  syncScopeProbes,
   toggleScopeChannelHidden,
   toggleScopeProbe
 } from '../src/simulation/signalScope.js';
@@ -232,11 +233,11 @@ test('clicking a joint node plots every joint curve', () => {
 });
 
 test('nodeProbeKeys treats an empty probeKeys list as not probeable', () => {
-  const { nodes } = buildJointRunnerNodes(2);
-  const clip = nodes.find((n) => n.id === 'prep-action-clip');
-  assert.deepEqual(nodeProbeKeys(clip), []);
-  assert.equal(nodeHasProbes(clip), false);
-  assert.deepEqual(listNodeProbes(clip), []);
+  // Structural nodes (warehouse, history, policy net) carry no live signal.
+  const structural = { id: 'warehouse', lines: [{ k: 'frame', v: '96D' }], probeKeys: [] };
+  assert.deepEqual(nodeProbeKeys(structural), []);
+  assert.equal(nodeHasProbes(structural), false);
+  assert.deepEqual(listNodeProbes(structural), []);
 });
 
 test('nodeProbeKeys falls back to rendered lines when no probeKeys exist', () => {
@@ -389,4 +390,32 @@ test('setScopeProbes spans several nodes when the caller allows it', () => {
     ['obs-Command-vx', 'obs-Command-vy', 'obs-Command-yaw']
   );
   assert.equal(new Set(channels.map((ch) => ch.color)).size, 3);
+});
+
+test('syncScopeProbes drops channels the current policy no longer has', () => {
+  const scope = createSignalScope({ capacity: 4 });
+  const oldNodes = [
+    { id: 'obs-Command-vx', title: 'Cmd vx', probeKeys: ['vx'] },
+    { id: 'out-action', title: 'Action', probeKeys: ['hip', 'knee'] }
+  ];
+  setScopeProbes(
+    scope,
+    [...listNodeProbes(oldNodes[0]), ...listNodeProbes(oldNodes[1])],
+    { allowMultipleNodes: true }
+  );
+  assert.equal(scope.channels.length, 3);
+
+  // New policy: no Command block, a different joint set, titles in Chinese.
+  const newNodes = [{ id: 'out-action', title: '动作', probeKeys: ['hip', 'ankle'] }];
+  assert.equal(syncScopeProbes(scope, newNodes), 2);
+  assert.deepEqual(scope.channels.map((ch) => ch.id), ['out-action:hip']);
+  assert.equal(scope.channels[0].label, '动作 · hip');
+});
+
+test('syncScopeProbes leaves the scope alone without nodes', () => {
+  const scope = createSignalScope({ capacity: 4 });
+  setScopeProbes(scope, listNodeProbes({ id: 'sim-cmd-vx', title: 'Cmd vx', probeKeys: ['vx'] }));
+  // Telemetry that is not ready yet has no nodes; that must not wipe the scope.
+  assert.equal(syncScopeProbes(scope, []), 0);
+  assert.equal(scope.channels.length, 1);
 });

@@ -1,5 +1,5 @@
 /**
- * E2E: click Obs Warehouse in the Model I/O pipeline panel to open the
+ * E2E: click Obs Concat in the Model I/O pipeline panel to open the
  * stacking view, and check the frame/tensor breakdown it renders.
  *
  * Usage:
@@ -159,12 +159,12 @@ async function main() {
     el.classList.contains('pipeline-node-clickable')
   ));
   if (!clickable) {
-    throw new Error('Obs Warehouse node is not marked clickable');
+    throw new Error('Obs Concat node is not marked clickable');
   }
 
   const activeTab = await openStackView(page, 'warehouse');
   if (activeTab !== 'stack') {
-    throw new Error(`Stacking tab did not open from Obs Warehouse (active: ${activeTab})`);
+    throw new Error(`Stacking tab did not open from Obs Concat (active: ${activeTab})`);
   }
   await page.waitForSelector('.stack-shell', { visible: true, timeout: 10000 });
 
@@ -261,7 +261,7 @@ async function main() {
   }
 
   console.log(
-    `OK: Obs Warehouse opened the stacking view (${view.rows.length} blocks, ${view.frames} frame(s), ${view.total}D per frame).`
+    `OK: Obs Concat opened the stacking view (${view.rows.length} blocks, ${view.frames} frame(s), ${view.total}D per frame).`
   );
   console.log(
     `OK: clicking block "${scope.block}" plotted ${scope.channels} scope channel(s) from "${scope.source}": ${scope.legend.slice(0, 3).join(', ')}…`

@@ -193,7 +193,12 @@
         >
           <div class="stack-tooltip-title">{{ tooltip.title }}</div>
           <div class="stack-tooltip-line">{{ tooltip.range }}</div>
-          <div v-if="tooltip.description" class="stack-tooltip-desc">{{ tooltip.description }}</div>
+          <MathText
+            v-if="tooltip.description"
+            tag="div"
+            class="stack-tooltip-desc"
+            :text="tooltip.description"
+          />
           <div v-if="tooltip.modules" class="stack-tooltip-desc">{{ tooltip.modules }}</div>
           <div v-if="tooltip.hint" class="stack-tooltip-hint">{{ tooltip.hint }}</div>
         </div>
@@ -203,8 +208,11 @@
 </template>
 
 <script>
+import MathText from '@/components/MathText.vue';
+
 export default {
   name: 'ObsStackChart',
+  components: { MathText },
   props: {
     layout: {
       type: Object,

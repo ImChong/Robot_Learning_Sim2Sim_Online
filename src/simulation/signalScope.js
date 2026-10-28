@@ -404,6 +404,38 @@ export function toggleScopeProbe(scope, probe) {
   return true;
 }
 
+/**
+ * Keep the scope in step with the current pipeline nodes: channels whose node
+ * or signal no longer exists (after a policy switch) are dropped, and the
+ * remaining labels follow the node titles (e.g. after a language switch).
+ * @param {object} scope
+ * @param {Array<{ id: string, title?: string, probeKeys?: string[] }>} nodes
+ * @returns {number} how many channels were removed
+ */
+export function syncScopeProbes(scope, nodes) {
+  if (!scope?.channels?.length || !nodes?.length) {
+    return 0;
+  }
+  const probes = new Map();
+  for (const node of nodes) {
+    for (const probe of listNodeProbes(node)) {
+      probes.set(probe.id, probe);
+    }
+  }
+  const kept = scope.channels.filter((ch) => probes.has(ch.id));
+  for (const ch of kept) {
+    const label = probes.get(ch.id).label;
+    if (ch.label !== label) {
+      ch.label = label;
+    }
+  }
+  const removed = scope.channels.length - kept.length;
+  if (removed > 0) {
+    scope.channels = kept;
+  }
+  return removed;
+}
+
 export function removeScopeProbe(scope, probeId) {
   const idx = scope.channels.findIndex((ch) => ch.id === probeId);
   if (idx >= 0) {

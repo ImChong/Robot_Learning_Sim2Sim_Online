@@ -61,26 +61,23 @@
           mandatory
           color="primary"
           class="model-io-tabs"
+          :class="{ 'model-io-tabs-mobile': isSmallScreen }"
         >
-          <v-btn value="graph" size="x-small" variant="text">
-            <v-icon icon="ph-graph" size="small" start />
-            {{ t.tabGraph }}
-          </v-btn>
-          <v-btn value="stack" size="x-small" variant="text">
-            <v-icon icon="ph-stack" size="small" :start="!isSmallScreen" />
-            <span v-if="!isSmallScreen">{{ t.tabStack }}</span>
-          </v-btn>
-          <v-btn value="architecture" size="x-small" variant="text">
-            <v-icon icon="ph-tree-structure" size="small" :start="!isSmallScreen" />
-            <span v-if="!isSmallScreen">{{ t.tabArchitecture }}</span>
-          </v-btn>
-          <v-btn value="scope" size="x-small" variant="text">
-            <v-icon icon="ph-wave-sine" size="small" start />
-            {{ t.tabScope }}
+          <v-btn
+            v-for="tab in tabs"
+            :key="tab.value"
+            :value="tab.value"
+            size="x-small"
+            variant="text"
+            :aria-label="tab.label"
+          >
+            <v-icon :icon="tab.icon" size="small" start />
+            {{ isSmallScreen ? tab.shortLabel : tab.label }}
           </v-btn>
         </v-btn-toggle>
         <v-btn
           v-if="isSmallScreen"
+          class="model-io-close"
           icon="ph-x"
           size="x-small"
           variant="text"
@@ -135,7 +132,6 @@
             :window-min-seconds="scopeWindowMinSeconds"
             :window-max-seconds="scopeWindowMaxSeconds"
             :window-input-aria-label="t.scopeWindowInput"
-            :reset-zoom-label="t.scopeResetZoom"
             :clear-label="t.scopeClear"
             :pause-label="t.scopePause"
             :resume-label="t.scopeResume"
@@ -147,10 +143,7 @@
             :hide-series-label="t.scopeHideSeries"
             :show-series-label="t.scopeShowSeries"
             :remove-series-label="t.scopeRemoveSeries"
-            :can-reset-zoom="Boolean(scopeZoom)"
-            :zoom="scopeZoom"
             @toggle-pause="toggleScopePause"
-            @reset-zoom="resetScopeZoom"
             @clear="clearScope"
             @remove-probe="onRemoveProbe"
             @toggle-series="onToggleSeries"
@@ -199,6 +192,7 @@ import {
   removeScopeProbe,
   setScopeProbes,
   setScopeWindowSeconds,
+  syncScopeProbes,
   toggleScopeChannelHidden
 } from '@/simulation/signalScope.js';
 import {
@@ -217,6 +211,9 @@ import { MAX_SCOPE_CHANNELS } from '@/simulation/scopeChannels.js';
 // A block can decompose into many nodes; the toolbar names the first few and
 // counts the rest so the stats row stays on one line.
 const MAX_SOURCE_NODE_NAMES = 3;
+// The graph and stacking views only show structure and a few slow counters,
+// so they are rebuilt far less often than the scope samples.
+const TELEMETRY_REFRESH_MS = 500;
 
 const translations = {
   en: {
@@ -232,7 +229,9 @@ const translations = {
     resizeBoth: 'Resize panel (top-right corner)',
     tabGraph: 'Graph',
     tabStack: 'Stacking',
+    tabStackShort: 'Stack',
     tabArchitecture: 'Architecture',
+    tabArchitectureShort: 'Arch',
     tabScope: 'Scope',
     stackHint: 'Click an observation block or one of its modules (row, sub-row or frame segment) to plot its live signals in the oscilloscope.',
     stackPlot: 'Click to plot in the oscilloscope',
@@ -258,7 +257,6 @@ const translations = {
     scopeShowSeries: 'Click to show this curve',
     scopeRemoveSeries: 'Remove this channel',
     scopeWindowInput: 'Oscilloscope window (seconds)',
-    scopeResetZoom: 'Reset zoom',
     scopeClear: 'Clear',
     scopePause: 'Pause',
     scopeResume: 'Resume',
@@ -267,7 +265,7 @@ const translations = {
     scopeMaxChannels: `Maximum ${MAX_SCOPE_CHANNELS} scope channels`
   },
   zh: {
-    panelTitle: '模型 I/O 连接图',
+    panelTitle: '模型 I/O 流程',
     expandPanel: '模型流程',
     collapsePanel: '收起流程',
     expandShort: '流程',
@@ -279,7 +277,9 @@ const translations = {
     resizeBoth: '拖拽右上角同时调整',
     tabGraph: '流程图',
     tabStack: '数据堆叠',
+    tabStackShort: '堆叠',
     tabArchitecture: '模型架构',
+    tabArchitectureShort: '架构',
     tabScope: '示波器',
     stackHint: '点击观测块或其中的模块（表格行 / 子行 / 帧色块）即可在示波器中查看对应的实时曲线。',
     stackPlot: '点击在示波器中查看曲线',
@@ -305,7 +305,6 @@ const translations = {
     scopeShowSeries: '点击显示该曲线',
     scopeRemoveSeries: '移除该通道',
     scopeWindowInput: '示波器显示时长（秒）',
-    scopeResetZoom: '重置缩放',
     scopeClear: '清空',
     scopePause: '暂停',
     scopeResume: '继续',
@@ -356,7 +355,6 @@ export default {
       signalScope,
       scopeSnapshot: getScopeSnapshot(signalScope),
       scopeWindowSeconds,
-      scopeZoom: null,
       panelWidth: panelSize.width,
       panelHeight: panelSize.height,
       panelResize: null
@@ -389,6 +387,20 @@ export default {
     },
     t() {
       return translations[this.language === 'en' ? 'en' : 'zh'];
+    },
+    tabs() {
+      const t = this.t;
+      return [
+        { value: 'graph', icon: 'ph-graph', label: t.tabGraph, shortLabel: t.tabGraph },
+        { value: 'stack', icon: 'ph-stack', label: t.tabStack, shortLabel: t.tabStackShort },
+        {
+          value: 'architecture',
+          icon: 'ph-tree-structure',
+          label: t.tabArchitecture,
+          shortLabel: t.tabArchitectureShort
+        },
+        { value: 'scope', icon: 'ph-wave-sine', label: t.tabScope, shortLabel: t.tabScope }
+      ];
     },
     stackLayout() {
       return buildObsStackLayout(this.telemetry);
@@ -462,15 +474,18 @@ export default {
       }
       this.refreshTelemetry();
     },
+    language() {
+      this.refreshTelemetry();
+    },
+    viewTab(tab) {
+      if (tab === 'graph' || tab === 'stack') {
+        this.refreshTelemetry();
+      }
+    },
     isSmallScreen(isSmall) {
-      if (!isSmall && this.expanded) {
-        return;
-      }
-      if (isSmall && this.expanded) {
-        document.body.classList.add('model-io-sheet-open');
-      } else {
-        document.body.classList.remove('model-io-sheet-open');
-      }
+      // Leaving the mobile layout with the sheet open must also release the
+      // body scroll lock, or the desktop page stays frozen.
+      document.body.classList.toggle('model-io-sheet-open', isSmall && this.expanded);
     },
     expanded(isOpen) {
       if (this.isSmallScreen) {
@@ -558,15 +573,20 @@ export default {
     },
     startPoll() {
       this.stopPoll();
-      this.pollTimer = setInterval(() => {
-        if (this.expanded && this.ready) {
-          this.refreshTelemetry();
-          if (this.activeProbes.length > 0) {
-            pushScopeSample(this.signalScope, this.demo?.policyRunner, this.demo);
-            this.scopeSnapshot = getScopeSnapshot(this.signalScope);
-          }
-        }
-      }, this.pollIntervalMs);
+      this.pollTimer = setInterval(() => this.pollTick(), this.pollIntervalMs);
+    },
+    pollTick() {
+      if (!this.expanded || !this.ready) {
+        return;
+      }
+      const showsTelemetry = this.viewTab === 'graph' || this.viewTab === 'stack';
+      if (showsTelemetry && performance.now() - (this.telemetryAt ?? 0) >= TELEMETRY_REFRESH_MS) {
+        this.refreshTelemetry();
+      }
+      if (this.activeProbes.length > 0) {
+        pushScopeSample(this.signalScope, this.demo?.policyRunner, this.demo);
+        this.scopeSnapshot = getScopeSnapshot(this.signalScope);
+      }
     },
     stopPoll() {
       if (this.pollTimer) {
@@ -578,15 +598,13 @@ export default {
       this.expanded = !this.expanded;
       if (this.expanded) {
         this.refreshTelemetry();
-        if (this.isSmallScreen) {
-          this.startPoll();
-        }
       }
     },
     closePanel() {
       this.expanded = false;
     },
     refreshTelemetry() {
+      this.telemetryAt = performance.now();
       if (!this.ready || !this.demo?.policyRunner) {
         this.telemetry = buildPolicyTelemetry(null, null, { lang: this.language });
         return;
@@ -596,6 +614,11 @@ export default {
         policyId: this.demo.currentPolicyId,
         currentPolicyPath: this.demo.currentPolicyPath
       });
+      // After a policy switch the scope may still hold channels of nodes or
+      // joints the new policy does not have; those would plot flat zeros.
+      if (syncScopeProbes(this.signalScope, this.telemetry.atomicNodes) > 0) {
+        this.scopeSnapshot = getScopeSnapshot(this.signalScope);
+      }
     },
     onProbeNode(node) {
       this.plotProbes(listNodeProbes(node));
@@ -635,7 +658,6 @@ export default {
         return;
       }
       setScopeProbes(this.signalScope, probes, options);
-      this.scopeZoom = null;
       this.viewTab = 'scope';
       if (this.ready && this.demo?.policyRunner) {
         pushScopeSample(this.signalScope, this.demo.policyRunner, this.demo);
@@ -657,7 +679,6 @@ export default {
     onScopeWindowChange(seconds) {
       const next = saveScopeWindowSeconds(seconds);
       this.scopeWindowSeconds = setScopeWindowSeconds(this.signalScope, next);
-      this.scopeZoom = null;
       this.scopeSnapshot = getScopeSnapshot(this.signalScope);
     },
     openScopeTab() {
@@ -672,13 +693,9 @@ export default {
     toggleScopePause() {
       this.signalScope.paused = !this.signalScope.paused;
     },
-    resetScopeZoom() {
-      this.scopeZoom = null;
-    },
     clearScope() {
       clearScopeBuffer(this.signalScope);
       this.signalScope.channels = [];
-      this.scopeZoom = null;
       this.scopeSnapshot = getScopeSnapshot(this.signalScope);
     }
   }
@@ -794,6 +811,7 @@ export default {
 
 .model-io-title {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   font-size: 1rem;
@@ -804,6 +822,19 @@ export default {
 
 .model-io-tabs {
   margin-right: 4px;
+}
+
+/* Mobile: the four tabs get their own full-width row under the title. */
+.model-io-tabs-mobile {
+  order: 10;
+  flex: 1 0 100%;
+  margin-right: 0;
+}
+
+.model-io-tabs-mobile :deep(.v-btn) {
+  flex: 1 1 0;
+  min-width: 0;
+  padding-inline: 4px;
 }
 
 .model-io-body {

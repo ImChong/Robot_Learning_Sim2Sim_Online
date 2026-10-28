@@ -44,14 +44,6 @@
         <v-btn
           size="x-small"
           variant="text"
-          :disabled="!canResetZoom"
-          @click="$emit('reset-zoom')"
-        >
-          {{ resetZoomLabel }}
-        </v-btn>
-        <v-btn
-          size="x-small"
-          variant="text"
           :disabled="snapshot.sampleCount === 0 && activeProbeIds.length === 0"
           @click="$emit('clear')"
         >
@@ -162,10 +154,6 @@ export default {
       type: String,
       default: 'Oscilloscope window seconds'
     },
-    resetZoomLabel: {
-      type: String,
-      default: 'Reset zoom'
-    },
     clearLabel: {
       type: String,
       default: 'Clear'
@@ -211,18 +199,9 @@ export default {
       type: String,
       default: 'Remove this channel'
     },
-    canResetZoom: {
-      type: Boolean,
-      default: false
-    },
-    zoom: {
-      type: Object,
-      default: null
-    }
   },
   emits: [
     'toggle-pause',
-    'reset-zoom',
     'clear',
     'remove-probe',
     'toggle-series',
@@ -255,12 +234,6 @@ export default {
     // every channel each tick, which is costly once a node plots 29 curves.
     snapshot() {
       this.scheduleDraw();
-    },
-    zoom: {
-      handler() {
-        this.scheduleDraw();
-      },
-      deep: true
     }
   },
   mounted() {
@@ -338,20 +311,15 @@ export default {
       ctx.fillStyle = '#1f1f1f';
       ctx.fillRect(pad.left, pad.top, plotW, plotH);
 
-      const { snapshot, zoom } = this;
+      const { snapshot } = this;
       if (!snapshot.sampleCount || !snapshot.times?.length) {
         return;
       }
 
-      const fullTMin = snapshot.timeRange?.[0] ?? snapshot.times[0];
-      const fullTMax = snapshot.timeRange?.[1] ?? snapshot.times[snapshot.times.length - 1];
-      const fullVMin = snapshot.valueRange?.[0] ?? -1;
-      const fullVMax = snapshot.valueRange?.[1] ?? 1;
-
-      const tMin = zoom?.timeMin ?? fullTMin;
-      const tMax = zoom?.timeMax ?? fullTMax;
-      const vMin = zoom?.valueMin ?? fullVMin;
-      const vMax = zoom?.valueMax ?? fullVMax;
+      const tMin = snapshot.timeRange?.[0] ?? snapshot.times[0];
+      const tMax = snapshot.timeRange?.[1] ?? snapshot.times[snapshot.times.length - 1];
+      const vMin = snapshot.valueRange?.[0] ?? -1;
+      const vMax = snapshot.valueRange?.[1] ?? 1;
       const tSpan = Math.max(1e-6, tMax - tMin);
       const vSpan = Math.max(1e-6, vMax - vMin);
 
@@ -383,11 +351,12 @@ export default {
         const y = pad.top + (plotH * i) / 4;
         ctx.fillText(value.toFixed(2), pad.left - 6, y);
       }
-      ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
       for (let i = 0; i <= 3; i++) {
         const t = tMin + (tSpan * i) / 3;
         const x = pad.left + (plotW * i) / 3;
+        // The last tick sits on the right edge: right-align it so it is not clipped.
+        ctx.textAlign = i === 3 ? 'right' : 'center';
         ctx.fillText(`${t.toFixed(2)}s`, x, pad.top + plotH + 6);
       }
 

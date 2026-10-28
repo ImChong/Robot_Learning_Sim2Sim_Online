@@ -760,6 +760,7 @@
 </template>
 
 <script>
+import { markRaw } from 'vue';
 import ModelIOFlowchart from '@/components/ModelIOFlowchart.vue';
 import AmpMobileJoystick from '@/components/AmpMobileJoystick.vue';
 import ParkourMobileJoystick from '@/components/ParkourMobileJoystick.vue';
@@ -1161,6 +1162,9 @@ export default {
   data: () => ({
     showExternalSourceLinks,
     state: 0, // 0: loading, 1: running, -1: JS error, -2: wasm unsupported
+    // Declared so the template (ModelIOFlowchart :demo) sees it from the first
+    // render; the instance itself is markRaw'd to stay out of reactivity.
+    demo: null,
     extra_error_message: '',
     keydown_listener: null,
     currentMotion: null,
@@ -1808,7 +1812,7 @@ export default {
       ]);
       const mujoco = await loadMujocoModule.default();
       report(0.10);
-      this.demo = new MuJoCoDemo(mujoco);
+      this.demo = markRaw(new MuJoCoDemo(mujoco));
       this.demo.setVisualTheme?.(this.visualTheme);
       this.demo.setFollowEnabled?.(this.cameraFollowEnabled);
       const scenePath = selected.scenePath ?? 'g1_amp/scene_g1.xml';
