@@ -236,7 +236,9 @@ export function buildPolicyTelemetry(runner, demo, options = {}) {
     policyId: options.policyId,
     currentPolicyPath: options.currentPolicyPath ?? demo?.currentPolicyPath
   });
-  const atomicNodes = buildAtomicNodes(runner, state, obsVector, obsLayout, lang, motorJoints);
+  const atomicNodes = buildAtomicNodes(runner, state, obsVector, obsLayout, lang, motorJoints, {
+    controlType: demo?.control_type
+  });
 
   const onnx = {
     inKeys: onnxMeta.in_keys ?? runner.module?.inKeys ?? ['policy'],

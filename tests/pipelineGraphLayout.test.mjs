@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildPipelineGraph } from '../src/simulation/pipelineGraphLayout.js';
+import { buildPipelineGraph, obsSourceIds } from '../src/simulation/pipelineGraphLayout.js';
 import { buildAtomicNodes } from '../src/simulation/pipelineAtomicNodes.js';
 
 const baseAtomic = buildAtomicNodes(
@@ -115,4 +115,46 @@ test('buildPipelineGraph appends scope sink and probe edges', () => {
   assert.ok(scopeNode);
   assert.equal(scopeNode.kind, 'scope');
   assert.ok(graph.edges.some((e) => e.from === 'sim-cmd-vx' && e.to === 'out-scope' && e.kind === 'scope'));
+});
+
+test('buildPipelineGraph numbers the lanes and describes each stage', () => {
+  const graph = buildPipelineGraph(baseTelemetry, 'en');
+  assert.deepEqual(
+    graph.lanes.map((lane) => lane.step),
+    graph.lanes.map((_, index) => index + 1)
+  );
+  assert.equal(graph.lanes.at(-1).id, 'scope');
+  for (const lane of graph.lanes) {
+    assert.ok(lane.description, `lane ${lane.id} has a description`);
+  }
+  // History length 4 is reflected in the policy stage description.
+  assert.match(graph.lanes.find((lane) => lane.id === 'policy').description, /4 frames/);
+});
+
+test('buildPipelineGraph drops the preprocess lane when nothing is preprocessed', () => {
+  const graph = buildPipelineGraph(baseTelemetry, 'en');
+  // baseAtomic is built without relative joints, and the action clip now
+  // lives on the action node, so there is no preprocessing stage at all.
+  assert.equal(graph.lanes.find((lane) => lane.id === 'prep'), undefined);
+  assert.equal(graph.nodes.find((n) => n.id === 'prep-action-clip'), undefined);
+});
+
+test('obsSourceIds only wires observations to the signals they read', () => {
+  assert.deepEqual(obsSourceIds({ id: 'obs-Command-vx' }, false), ['sim-cmd-vx']);
+  assert.deepEqual(
+    obsSourceIds({ id: 'obs-Command13-twist' }, false),
+    ['sim-cmd-vx', 'sim-cmd-vy', 'sim-cmd-yaw']
+  );
+  assert.deepEqual(obsSourceIds({ id: 'obs-JointPos' }, true), ['prep-joint-rel']);
+  assert.deepEqual(obsSourceIds({ id: 'obs-JointPos' }, false), ['sim-joint-pos']);
+  // Constants, UI flags and the previous action have no simulation source.
+  for (const id of [
+    'obs-Command13-head',
+    'obs-BootIndicator',
+    'obs-ComplianceFlagObs-en',
+    'obs-PrevActions',
+    'obs-SomethingNew'
+  ]) {
+    assert.deepEqual(obsSourceIds({ id }, false), [], id);
+  }
 });

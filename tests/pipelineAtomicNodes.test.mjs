@@ -1,6 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildAtomicNodes } from '../src/simulation/pipelineAtomicNodes.js';
+import {
+  buildAtomicNodes,
+  nodeHeightForLines,
+  splitNodeLines
+} from '../src/simulation/pipelineAtomicNodes.js';
 
 const runner = {
   policyJointNames: ['hip', 'knee'],
@@ -54,8 +58,49 @@ test('buildAtomicNodes carries the full channel list on summarized nodes', () =>
 
   assert.deepEqual(nodes.find((n) => n.id === 'sim-root-quat').probeKeys, ['w', 'x', 'y', 'z']);
   assert.deepEqual(nodes.find((n) => n.id === 'sim-root-angvel').probeKeys, ['x', 'y', 'z']);
-  // Static configuration, never a plotted signal.
-  assert.deepEqual(nodes.find((n) => n.id === 'prep-action-clip').probeKeys, []);
+});
+
+test('buildAtomicNodes folds the action clip into the action node', () => {
+  const nodes = buildAtomicNodes(runner, state, obsVector, obsLayout, 'en');
+  // The clip runs on the ONNX output, it is not an observation preprocessing step.
+  assert.equal(nodes.find((n) => n.id === 'prep-action-clip'), undefined);
+  assert.match(nodes.find((n) => n.id === 'out-action').subtitle, /±10/);
+});
+
+test('buildAtomicNodes summarizes per-joint output nodes', () => {
+  const nodes = buildAtomicNodes(runner, state, obsVector, obsLayout, 'en', [
+    { name: 'hip' },
+    { name: 'knee' }
+  ]);
+  for (const id of ['prep-joint-rel', 'out-action', 'out-target', 'motor-torque']) {
+    const node = nodes.find((n) => n.id === id);
+    assert.deepEqual(node.lines, [{ k: 'dim', v: '2D' }], id);
+    assert.deepEqual(node.probeKeys, ['hip', 'knee'], id);
+  }
+});
+
+test('buildAtomicNodes names the motor node after the control type', () => {
+  const motors = [{ name: 'hip' }, { name: 'knee' }];
+  const pd = buildAtomicNodes(runner, state, obsVector, obsLayout, 'en', motors, {
+    controlType: 'unitree_position'
+  }).find((n) => n.id === 'motor-torque');
+  assert.equal(pd.title, 'Motor Torque');
+
+  // MuJoCo position actuators receive the target angle, not a torque.
+  const servo = buildAtomicNodes(runner, state, obsVector, obsLayout, 'en', motors, {
+    controlType: 'mujoco_position'
+  }).find((n) => n.id === 'motor-torque');
+  assert.equal(servo.title, 'Actuator ctrl');
+});
+
+test('nodeHeightForLines packs bare keys into chip rows', () => {
+  const single = nodeHeightForLines([{ k: 'dim', v: '2D' }]);
+  assert.equal(nodeHeightForLines([{ k: 'x' }, { k: 'y' }, { k: 'z' }]), single);
+  assert.ok(nodeHeightForLines([{ k: 'w' }, { k: 'x' }, { k: 'y' }, { k: 'z' }, { k: 'v' }]) > single);
+  assert.deepEqual(
+    splitNodeLines([{ k: 'dim', v: '2D' }, { k: 'x' }]),
+    { rows: [{ k: 'dim', v: '2D' }], chips: [{ k: 'x' }] }
+  );
 });
 
 test('buildAtomicNodes includes per-joint policy output', () => {

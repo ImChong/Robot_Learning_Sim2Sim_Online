@@ -1,13 +1,15 @@
-import { formatFloat, sampleArray } from './policyTelemetry.js';
-import { inferPolicyFamily, policyFamilyLabel, findLoopbackPrevActionNode, isPrevActionObsNodeId } from './pipelineObsNodes.js';
+import { formatFloat } from './policyTelemetry.js';
+import { nodeHeightForLines } from './pipelineAtomicNodes.js';
+import { policyFamilyLabel, findLoopbackPrevActionNode, isPrevActionObsNodeId } from './pipelineObsNodes.js';
 
-const COL_GAP = 96;
+const COL_GAP = 72;
 const ROW_GAP = 16;
 const ROW_GAP_MOBILE = 10;
 const MARGIN_X = 28;
 const MARGIN_Y = 22;
 const LANE_HEADER = 44;
 const LANE_PAD_X = 18;
+const HISTORY_WIDTH = 232;
 
 function colX(index, widths) {
   let x = MARGIN_X;
@@ -35,54 +37,119 @@ function laneRange(startCol, endCol, colWidths) {
   return { x: xStart, width: xEnd - xStart };
 }
 
-function obsSourceId(obsNode, hasPrepRel) {
-  const id = obsNode.id ?? '';
+const CMD_SOURCE_IDS = ['sim-cmd-vx', 'sim-cmd-vy', 'sim-cmd-yaw'];
+
+/**
+ * Simulation / preprocessing nodes an observation node is computed from.
+ * Terms without a live source (BootIndicator, compliance flags, zero padding
+ * of Command13, unknown blocks) get no incoming edge instead of a made-up one.
+ * @returns {string[]}
+ */
+export function obsSourceIds(obsNode, hasPrepRel) {
+  const id = obsNode?.id ?? '';
+  const jointPosSource = hasPrepRel ? 'prep-joint-rel' : 'sim-joint-pos';
+  if (isPrevActionObsNodeId(id)) {
+    // Fed by the action loopback edge.
+    return [];
+  }
   if (id.includes('JointPos')) {
-    return hasPrepRel ? 'prep-joint-rel' : 'sim-joint-pos';
+    return [jointPosSource];
   }
   if (id.includes('JointVel')) {
-    return 'sim-joint-vel';
+    return ['sim-joint-vel'];
   }
   if (id.includes('RootAngVel')) {
-    return 'sim-root-angvel';
+    return ['sim-root-angvel'];
   }
   if (id.includes('ProjectedGravity')) {
-    return 'sim-root-quat';
+    return ['sim-root-quat'];
   }
   if (id.includes('Command-vx')) {
-    return 'sim-cmd-vx';
+    return ['sim-cmd-vx'];
   }
   if (id.includes('Command-vy')) {
-    return 'sim-cmd-vy';
+    return ['sim-cmd-vy'];
   }
   if (id.includes('Command-yaw')) {
-    return 'sim-cmd-yaw';
+    return ['sim-cmd-yaw'];
   }
-  if (id.includes('TrackingCommandObsRaw')) {
-    return 'sim-root-quat';
+  if (id === 'obs-Command13-twist') {
+    return CMD_SOURCE_IDS;
   }
-  if (id.includes('TargetRootZObs') || id.includes('TargetProjectedGravityBObs')) {
-    return 'sim-root-quat';
+  if (id.includes('TrackingCommandObsRaw') || id.includes('TargetRootZObs')) {
+    return ['sim-root-quat'];
   }
-  if (id.includes('TargetJointPosObs')) {
-    return hasPrepRel ? 'prep-joint-rel' : 'sim-joint-pos';
+  return [];
+}
+
+function pushObsEdges(edges, obs, hasPrepRel) {
+  for (const src of obsSourceIds(obs, hasPrepRel)) {
+    edges.push({ id: `e-${src}-${obs.id}`, from: src, to: obs.id });
   }
-  if (isPrevActionObsNodeId(id)) {
-    return null;
+  edges.push({ id: `e-${obs.id}-wh`, from: obs.id, to: 'warehouse' });
+}
+
+/**
+ * What each stage of the flow does, shown next to the numbered stage chips.
+ * @param {string} laneId
+ * @param {boolean} zh
+ * @param {{ historyLength: number, hasLoopback: boolean }} context
+ */
+function laneDescription(laneId, zh, { historyLength, hasLoopback }) {
+  switch (laneId) {
+    case 'sim':
+      return zh
+        ? '每个控制周期从 MuJoCo 读取根位姿、角速度、关节角/速度，以及摇杆/键盘给出的速度指令。'
+        : 'Each control step reads root pose, angular velocity, joint angles/velocities from MuJoCo, plus the joystick/keyboard velocity command.';
+    case 'prep':
+      return zh
+        ? '几何预处理：关节角减去默认站姿 q₀，得到相对关节角。'
+        : 'Geometric preprocessing: subtract the default pose q₀ to get relative joint angles.';
+    case 'obs':
+      if (hasLoopback) {
+        return zh
+          ? '按训练时的顺序计算各观测项；虚线回环表示上一步的动作也作为本步观测。'
+          : 'Compute each observation term in training order; the dashed loop feeds the previous action back as an observation.';
+      }
+      return zh
+        ? '按训练时的顺序计算各观测项。'
+        : 'Compute each observation term in training order.';
+    case 'policy':
+      if (historyLength > 1) {
+        return zh
+          ? `观测项拼接成单帧向量，与最近 ${historyLength} 帧历史堆叠后送入 ONNX 策略网络推理。`
+          : `Concatenate the terms into one frame, stack the last ${historyLength} frames and run the ONNX policy.`;
+      }
+      return zh
+        ? '观测项拼接成单帧向量，送入 ONNX 策略网络推理。'
+        : 'Concatenate the terms into one frame vector and run the ONNX policy.';
+    case 'output':
+      return zh
+        ? '动作裁剪 → 目标关节角 q* = q₀ + s·a → 下发给电机执行。'
+        : 'Clip the action → target joint angle q* = q₀ + s·a → sent to the motors.';
+    case 'scope':
+      return zh
+        ? '点击任意信号节点，在示波器中查看它的实时曲线。'
+        : 'Click any signal node to plot it live in the oscilloscope.';
+    default:
+      return '';
   }
-  return 'prep-action-clip';
+}
+
+function annotateLanes(graph, telemetry, zh) {
+  const context = {
+    historyLength: telemetry.concat?.historyLength ?? 1,
+    hasLoopback: graph.edges.some((edge) => edge.kind === 'loopback')
+  };
+  graph.lanes.forEach((lane, index) => {
+    lane.step = index + 1;
+    lane.description = laneDescription(lane.id, zh, context);
+  });
+  return graph;
 }
 
 function cloneNodes(list) {
   return list.map((n) => ({ ...n, lines: n.lines ? [...n.lines] : [] }));
-}
-
-const NODE_HEAD = 48;
-const NODE_CARD_PAD_V = 22;
-const NODE_LINE = 19;
-
-function nodeHeightForLines(lineCount) {
-  return Math.max(72, NODE_HEAD + NODE_CARD_PAD_V + lineCount * NODE_LINE);
 }
 
 /**
@@ -102,10 +169,10 @@ export function buildPipelineGraph(telemetry, lang = 'zh', options = {}) {
   }
 
   const activeProbes = options.activeProbes ?? [];
-  if (options.layout === 'vertical') {
-    return appendScopeSink(buildVerticalAtomicGraph(telemetry, zh, atomic), activeProbes, zh);
-  }
-  return appendScopeSink(buildHorizontalAtomicGraph(telemetry, zh, atomic), activeProbes, zh);
+  const graph = options.layout === 'vertical'
+    ? buildVerticalAtomicGraph(telemetry, zh, atomic)
+    : buildHorizontalAtomicGraph(telemetry, zh, atomic);
+  return annotateLanes(appendScopeSink(graph, activeProbes, zh), telemetry, zh);
 }
 
 function appendScopeSink(graph, activeProbes, zh) {
@@ -124,7 +191,7 @@ function appendScopeSink(graph, activeProbes, zh) {
     lines.push({ k: '…', v: `+${channelCount - previewLines.length}` });
   }
 
-  const scopeHeight = nodeHeightForLines(lines.length);
+  const scopeHeight = nodeHeightForLines(lines);
   const scopeWidth = 200;
   let scopeX;
   let scopeY;
@@ -152,7 +219,7 @@ function appendScopeSink(graph, activeProbes, zh) {
     id: 'out-scope',
     kind: 'scope',
     title: zh ? '示波器' : 'Scope',
-    subtitle: zh ? 'uPlot 风格波形' : 'Waveform sink',
+    subtitle: zh ? '实时曲线' : 'live curves',
     width: scopeWidth,
     height: scopeHeight,
     x: scopeX,
@@ -207,17 +274,17 @@ function buildHorizontalAtomicGraph(telemetry, zh, atomic) {
   if (prepNodes.length) {
     colWidths.push(Math.max(184, ...prepNodes.map((n) => n.width ?? 184)));
   }
-  colWidths.push(Math.max(248, ...obsNodes.map((n) => n.width ?? 248)));
+  colWidths.push(Math.max(208, ...obsNodes.map((n) => n.width ?? 208)));
   colWidths.push(200);
   if (hasHistory) {
-    colWidths.push(264);
+    colWidths.push(HISTORY_WIDTH);
   }
   colWidths.push(onnxColWidth);
   for (const out of outputNodes) {
-    colWidths.push(Math.max(248, out.width ?? 248));
+    colWidths.push(Math.max(208, out.width ?? 208));
   }
   if (motorNodes.length) {
-    colWidths.push(Math.max(248, ...motorNodes.map((n) => n.width ?? 248)));
+    colWidths.push(Math.max(208, ...motorNodes.map((n) => n.width ?? 208)));
   }
 
   const nodes = [];
@@ -258,11 +325,7 @@ function buildHorizontalAtomicGraph(telemetry, zh, atomic) {
   const obsStack = stackColumn(obsNodes, xObs, ROW_GAP, yStart);
   nodes.push(...obsNodes);
   for (const obs of obsNodes) {
-    const src = obsSourceId(obs, hasPrepRel);
-    if (src) {
-      edges.push({ id: `e-${src}-${obs.id}`, from: src, to: obs.id });
-    }
-    edges.push({ id: `e-${obs.id}-wh`, from: obs.id, to: 'warehouse' });
+    pushObsEdges(edges, obs, hasPrepRel);
   }
   lanes.push({
     id: 'obs',
@@ -284,12 +347,12 @@ function buildHorizontalAtomicGraph(telemetry, zh, atomic) {
     { k: zh ? '张量' : 'tensor', v: `${telemetry.concat.tensorSize}D` },
     ...(historyLabel ? [{ k: zh ? '历史' : 'hist', v: historyLabel }] : [])
   ];
-  const warehouseHeight = nodeHeightForLines(warehouseLines.length);
+  const warehouseHeight = nodeHeightForLines(warehouseLines);
   nodes.push({
     id: 'warehouse',
     kind: 'warehouse',
-    title: zh ? '观测仓库' : 'Obs Warehouse',
-    subtitle: zh ? '向量拼接' : 'Vector concat',
+    title: zh ? '观测拼接' : 'Obs Concat',
+    subtitle: zh ? '拼成单帧向量' : 'one frame vector',
     width: 200,
     height: warehouseHeight,
     x: xWarehouse,
@@ -307,13 +370,15 @@ function buildHorizontalAtomicGraph(telemetry, zh, atomic) {
       { k: zh ? '窗口' : 'window', v: historyLabel },
       { k: zh ? '预览' : 'preview', v: formatVec(telemetry.concat.tensorPreview, 3) }
     ];
-    const historyHeight = nodeHeightForLines(historyLines.length);
+    const historyHeight = nodeHeightForLines(historyLines);
     nodes.push({
       id: 'history',
       kind: 'process',
       title: zh ? '历史缓冲' : 'History buffer',
-      subtitle: `×${telemetry.concat.historyLength}`,
-      width: 264,
+      subtitle: zh
+        ? `堆叠最近 ${telemetry.concat.historyLength} 帧`
+        : `last ${telemetry.concat.historyLength} frames`,
+      width: HISTORY_WIDTH,
       height: historyHeight,
       x: xHistory,
       y: coreY - historyHeight / 2,
@@ -334,7 +399,7 @@ function buildHorizontalAtomicGraph(telemetry, zh, atomic) {
     { k: 'in', v: `${telemetry.onnx.inKeys.join(',')} ${shapeStr(telemetry.onnx.inputShape)}` },
     { k: 'out', v: telemetry.onnx.outKeys.join(',') }
   ];
-  const onnxHeight = nodeHeightForLines(onnxLines.length);
+  const onnxHeight = nodeHeightForLines(onnxLines);
   nodes.push({
     id: 'onnx',
     kind: 'model',
@@ -424,7 +489,7 @@ function buildVerticalAtomicGraph(telemetry, zh, atomic) {
   place({
     id: 'warehouse',
     kind: 'warehouse',
-    title: zh ? '观测仓库' : 'Obs Warehouse',
+    title: zh ? '观测拼接' : 'Obs Concat',
     subtitle: `${telemetry.concat.tensorSize}D`,
     height: 58,
     lines: [
@@ -467,11 +532,7 @@ function buildVerticalAtomicGraph(telemetry, zh, atomic) {
     edges.push({ id: 'e-sim-prep-joint', from: 'sim-joint-pos', to: 'prep-joint-rel' });
   }
   for (const obs of atomic.filter((n) => n.group === 'obs')) {
-    const src = obsSourceId(obs, hasPrepRel);
-    if (src) {
-      edges.push({ id: `e-${src}-${obs.id}`, from: src, to: obs.id });
-    }
-    edges.push({ id: `e-${obs.id}-wh`, from: obs.id, to: 'warehouse' });
+    pushObsEdges(edges, obs, hasPrepRel);
   }
 
   let prev = hasHistory ? 'history' : 'warehouse';
