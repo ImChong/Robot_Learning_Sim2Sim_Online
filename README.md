@@ -31,7 +31,6 @@ npm run dev
 - `node_modules/mujoco-js/`：MuJoCo wasm 运行时（npm 包）
 - `scripts/vite-plugin-mujoco-wasm.mjs`：构建时把 mujoco-js 内嵌的 base64 wasm 抽成独立 `.wasm` 并去掉调试段，运行时由 `src/simulation/loadMujoco.js` 流式加载
 - `scripts/vite-plugin-scene-mesh-gzip.mjs`：构建时为 STL 网格生成 `.gz` 副本（GitHub Pages 不压缩 STL），加载器优先下载并解压
-- `src/plugins/mdiIcons.js`：界面用到的 MDI 图标（内联 SVG），新增 `mdi-*` 图标需在此登记
 - `public/examples/scenes/`：放置 MJCF 文件与 mesh 资源，运行时会预加载到 MuJoCo 的 MEMFS
 - `public/examples/checkpoints/`：放置 policy 配置 JSON、ONNX 模型与 motion 数据
 

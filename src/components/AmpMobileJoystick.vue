@@ -54,7 +54,7 @@
           @pointercancel.prevent="onKnockdownPointerUp"
           @click.stop="onKnockdownClick"
         >
-          <v-icon icon="mdi-arrow-down-bold" size="22" />
+          <v-icon icon="ph-arrow-fat-down" size="22" />
         </button>
         <button
           type="button"
@@ -67,7 +67,7 @@
           @pointercancel.prevent="onStrafeUp($event)"
           @pointerleave.prevent="onStrafeUp($event)"
         >
-          <v-icon icon="mdi-arrow-left-bold" size="22" />
+          <v-icon icon="ph-arrow-arc-left" size="22" />
         </button>
         <button
           type="button"
@@ -80,7 +80,7 @@
           @pointercancel.prevent="onStrafeUp($event)"
           @pointerleave.prevent="onStrafeUp($event)"
         >
-          <v-icon icon="mdi-arrow-right-bold" size="22" />
+          <v-icon icon="ph-arrow-arc-right" size="22" />
         </button>
       </div>
     </div>
@@ -362,10 +362,10 @@ export default {
   --amp-orbit-radius: calc(var(--amp-stick-size) / 2 + var(--amp-btn-size) / 2 + 14px);
 
   position: fixed;
-  right: 20px;
-  z-index: 1050;
-  bottom: calc(20px + constant(safe-area-inset-bottom) + var(--vvp-offset-bottom, 0px));
-  bottom: calc(20px + env(safe-area-inset-bottom, 0px) + var(--vvp-offset-bottom, 0px));
+  right: 16px;
+  z-index: var(--z-dock);
+  bottom: calc(16px + constant(safe-area-inset-bottom) + var(--vvp-offset-bottom, 0px));
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px) + var(--vvp-offset-bottom, 0px));
   touch-action: none;
   user-select: none;
   pointer-events: auto;
@@ -501,6 +501,7 @@ export default {
   padding: 0;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
+  transition: background-color var(--transition), border-color var(--transition);
 }
 
 .amp-mobile-controls__action-btn:not(.amp-mobile-controls__knockdown-btn):active:not(:disabled),

@@ -176,7 +176,7 @@ export default {
 }
 
 .network-diagram-edge {
-  stroke: rgba(148, 163, 184, 0.18);
+  stroke: rgba(155, 155, 155, 0.18);
   stroke-width: 0.5;
 }
 
@@ -185,8 +185,8 @@ export default {
 }
 
 .network-diagram-neuron {
-  fill: rgba(30, 41, 59, 0.95);
-  stroke: rgba(148, 163, 184, 0.7);
+  fill: var(--viz-raised);
+  stroke: rgba(155, 155, 155, 0.7);
   stroke-width: 1;
 }
 
@@ -197,7 +197,7 @@ export default {
 
 .network-diagram-neuron-input,
 .network-diagram-neuron-output {
-  fill: rgba(15, 23, 42, 0.95);
+  fill: var(--viz-panel);
 }
 
 .network-diagram-live .network-diagram-neuron-input,
@@ -207,32 +207,32 @@ export default {
 
 .network-diagram-ellipsis {
   font-size: 12px;
-  fill: rgba(148, 163, 184, 0.85);
+  fill: rgba(155, 155, 155, 0.85);
   font-weight: 700;
 }
 
 .network-diagram-label {
   font-size: 9px;
-  fill: rgba(226, 232, 240, 0.92);
+  fill: var(--viz-ink);
   font-weight: 600;
   letter-spacing: 0.04em;
 }
 
 .network-diagram-sublabel {
   font-size: 8px;
-  fill: rgba(148, 163, 184, 0.85);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  fill: rgba(155, 155, 155, 0.85);
+  font-family: var(--font-mono);
 }
 
 .network-diagram-dim {
   font-size: 9.5px;
   fill: rgba(var(--v-theme-primary), 0.95);
   font-weight: 700;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
 }
 
 .network-diagram-post {
   font-size: 7.5px;
-  fill: rgba(148, 163, 184, 0.8);
+  fill: rgba(155, 155, 155, 0.8);
 }
 </style>

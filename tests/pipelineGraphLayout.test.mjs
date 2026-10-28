@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildPipelineGraph } from '../src/simulation/pipelineGraphLayout.js';
+import { buildPipelineGraph, obsSourceIds, wrapObsColumns } from '../src/simulation/pipelineGraphLayout.js';
 import { buildAtomicNodes } from '../src/simulation/pipelineAtomicNodes.js';
 
 const baseAtomic = buildAtomicNodes(
@@ -115,4 +115,86 @@ test('buildPipelineGraph appends scope sink and probe edges', () => {
   assert.ok(scopeNode);
   assert.equal(scopeNode.kind, 'scope');
   assert.ok(graph.edges.some((e) => e.from === 'sim-cmd-vx' && e.to === 'out-scope' && e.kind === 'scope'));
+});
+
+test('buildPipelineGraph numbers the lanes and describes each stage', () => {
+  const graph = buildPipelineGraph(baseTelemetry, 'en');
+  assert.deepEqual(
+    graph.lanes.map((lane) => lane.step),
+    graph.lanes.map((_, index) => index + 1)
+  );
+  assert.equal(graph.lanes.at(-1).id, 'scope');
+  for (const lane of graph.lanes) {
+    assert.ok(lane.description, `lane ${lane.id} has a description`);
+  }
+  // History length 4 is reflected in the policy stage description.
+  assert.match(graph.lanes.find((lane) => lane.id === 'policy').description, /4 frames/);
+});
+
+test('buildPipelineGraph drops the preprocess lane when nothing is preprocessed', () => {
+  const graph = buildPipelineGraph(baseTelemetry, 'en');
+  // baseAtomic is built without relative joints, and the action clip now
+  // lives on the action node, so there is no preprocessing stage at all.
+  assert.equal(graph.lanes.find((lane) => lane.id === 'prep'), undefined);
+  assert.equal(graph.nodes.find((n) => n.id === 'prep-action-clip'), undefined);
+});
+
+test('obsSourceIds only wires observations to the signals they read', () => {
+  assert.deepEqual(obsSourceIds({ id: 'obs-Command-vx' }, false), ['sim-cmd-vx']);
+  assert.deepEqual(
+    obsSourceIds({ id: 'obs-Command13-twist' }, false),
+    ['sim-cmd-vx', 'sim-cmd-vy', 'sim-cmd-yaw']
+  );
+  assert.deepEqual(obsSourceIds({ id: 'obs-JointPos' }, true), ['prep-joint-rel']);
+  assert.deepEqual(obsSourceIds({ id: 'obs-JointPos' }, false), ['sim-joint-pos']);
+  // Constants, UI flags and the previous action have no simulation source.
+  for (const id of [
+    'obs-Command13-head',
+    'obs-BootIndicator',
+    'obs-ComplianceFlagObs-en',
+    'obs-PrevActions',
+    'obs-SomethingNew'
+  ]) {
+    assert.deepEqual(obsSourceIds({ id }, false), [], id);
+  }
+});
+
+test('wrapObsColumns keeps short stacks in one column', () => {
+  const nodes = Array.from({ length: 9 }, () => ({ height: 79 }));
+  assert.equal(wrapObsColumns(nodes, 740).length, 1);
+});
+
+test('wrapObsColumns splits a tall stack into balanced, ordered columns', () => {
+  const nodes = Array.from({ length: 29 }, (_, i) => ({ id: `n${i}`, height: 79 }));
+  const columns = wrapObsColumns(nodes, 740);
+  assert.equal(columns.length, 3);
+  assert.deepEqual(columns.map((column) => column.length), [10, 10, 9]);
+  // Concat order reads column by column.
+  assert.deepEqual(columns.flat().map((node) => node.id), nodes.map((node) => node.id));
+});
+
+test('buildPipelineGraph lays a wrapped observation stack out side by side', () => {
+  const obsNodes = Array.from({ length: 29 }, (_, i) => ({
+    id: `obs-Term${i}`,
+    kind: 'signal',
+    group: 'obs',
+    title: `Term ${i}`,
+    width: 184,
+    height: 79,
+    lines: [{ k: 'x' }],
+    probeKeys: ['x']
+  }));
+  const graph = buildPipelineGraph({
+    ...baseTelemetry,
+    atomicNodes: [...baseAtomic.filter((n) => n.group !== 'obs'), ...obsNodes]
+  }, 'en');
+  const placed = graph.nodes.filter((n) => n.id.startsWith('obs-Term'));
+  const xs = [...new Set(placed.map((n) => n.x))];
+  assert.equal(xs.length, 3);
+  const lane = graph.lanes.find((l) => l.id === 'obs');
+  for (const node of placed) {
+    assert.ok(node.x >= lane.x && node.x + node.width <= lane.x + lane.width, node.id);
+  }
+  const bottom = Math.max(...placed.map((n) => n.y + n.height));
+  assert.ok(bottom < 1200, `wrapped stack bottom ${bottom}`);
 });

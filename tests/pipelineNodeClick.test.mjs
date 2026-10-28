@@ -83,7 +83,7 @@ test('pipelineNodeClickAction opens architecture for Policy net', () => {
   assert.equal(onnx.title, 'Policy net');
   assert.equal(isArchitectureNode(onnx), true);
   assert.equal(pipelineNodeClickAction(onnx), 'open-architecture');
-  assert.equal(pipelineNodeHintIcon('open-architecture'), 'mdi-sitemap-outline');
+  assert.equal(pipelineNodeHintIcon('open-architecture'), 'ph-tree-structure');
 });
 
 test('pipelineNodeClickAction opens architecture for vertical Policy net', () => {
@@ -113,7 +113,7 @@ test('pipelineNodeClickAction opens the stacking view for structural nodes', () 
   assert.equal(isStackNode(history), true);
   assert.equal(pipelineNodeClickAction(warehouse), 'open-stack');
   assert.equal(pipelineNodeClickAction(history), 'open-stack');
-  assert.equal(pipelineNodeHintIcon('open-stack'), 'mdi-layers-outline');
+  assert.equal(pipelineNodeHintIcon('open-stack'), 'ph-stack');
 });
 
 test('pipelineNodeClickAction plots nodes that only show a dimension summary', () => {
@@ -128,7 +128,7 @@ test('pipelineNodeClickAction probes signal nodes and ignores empty nodes', () =
   const graph = buildPipelineGraph(telemetry, 'en');
   const cmd = graph.nodes.find((n) => n.id === 'sim-cmd-vx');
   assert.equal(pipelineNodeClickAction(cmd), 'probe-node');
-  assert.equal(pipelineNodeHintIcon('probe-node'), 'mdi-chart-line-variant');
+  assert.equal(pipelineNodeHintIcon('probe-node'), 'ph-wave-sine');
   assert.equal(pipelineNodeClickAction(null), null);
   assert.equal(pipelineNodeClickAction({ id: 'empty', kind: 'process', lines: [] }), null);
   assert.equal(
