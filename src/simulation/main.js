@@ -8,6 +8,8 @@ import {
   getQuaternion,
   initialSceneAssetPrefixes,
   toMujocoPos,
+  preloadPolicyAssets,
+  releasePolicyCaches,
   reloadScene,
   reloadPolicy
 } from './mujocoUtils.js';
@@ -235,6 +237,8 @@ export class MuJoCoDemo {
       while (this.policyRunner?.isInferencing) {
         await new Promise((resolve) => setTimeout(resolve, 10));
       }
+      // Policy JSON/ONNX/ORT runtime don't depend on the scene: load them alongside it.
+      preloadPolicyAssets(nextPolicyPath, options.onnxPath);
       await ensureSceneAssetsForPath(this.mujoco, nextScenePath, (p) => {
         report(sceneDownload * p);
       });
@@ -261,6 +265,18 @@ export class MuJoCoDemo {
     report(1);
     console.log('scene:', this.currentScenePath, 'timestep:', this.timestep, 'decimation:', this.decimation);
     this.alive = true;
+  }
+
+  /**
+   * Warm the caches for a policy the user is about to pick (policy menu hover/focus):
+   * download its scene files into MEMFS and preload its JSON / ONNX session.
+   */
+  prefetchSceneAndPolicy(scenePath, policyPath, onnxPath) {
+    if (!this.mujoco) {
+      return;
+    }
+    preloadPolicyAssets(policyPath, onnxPath);
+    ensureSceneAssetsForPath(this.mujoco, scenePath ?? defaultScene).catch(() => {});
   }
 
   applySceneView(view) {
@@ -335,6 +351,7 @@ export class MuJoCoDemo {
     }
 
     await this.releasePolicyResources();
+    releasePolicyCaches();
 
     if (this.simulation) {
       this.simulation.free();

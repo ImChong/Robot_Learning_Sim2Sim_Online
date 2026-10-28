@@ -23,6 +23,10 @@ export function disposeObject3D(root) {
     if (child.geometry) {
       child.geometry.dispose();
     }
+    if (child.isLight) {
+      // Frees the light's shadow map render target.
+      child.dispose?.();
+    }
     const materials = child.material
       ? (Array.isArray(child.material) ? child.material : [child.material])
       : [];

@@ -45,6 +45,21 @@ export async function readResponseBodyWithProgress(response, onProgress) {
   return out;
 }
 
+/** True when `bytes` starts with the gzip magic number. */
+export function isGzipData(bytes) {
+  return bytes.length >= 2 && bytes[0] === 0x1f && bytes[1] === 0x8b;
+}
+
+/**
+ * Inflate gzip data with the browser's DecompressionStream.
+ * @param {Uint8Array} bytes
+ * @returns {Promise<Uint8Array>}
+ */
+export async function gunzipBytes(bytes) {
+  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+
 /**
  * @param {string} url
  * @param {(ratio: number) => void} [onProgress]
@@ -72,6 +87,27 @@ export async function fetchUint8ArrayWithProgress(url, onProgress, timeoutMs = 3
 export async function fetchTextWithProgress(url, onProgress) {
   const bytes = await fetchUint8ArrayWithProgress(url, onProgress);
   return new TextDecoder('utf-8').decode(bytes);
+}
+
+const textCache = new Map();
+
+/**
+ * Like fetchTextWithProgress, but each URL is fetched once per page session, so small config
+ * files (policy / scene / motion index JSON) cost no round trip when switching policies again.
+ * @param {string} url
+ * @param {(ratio: number) => void} [onProgress]
+ * @returns {Promise<string>}
+ */
+export function fetchTextCached(url, onProgress) {
+  let promise = textCache.get(url);
+  if (promise) {
+    promise.then(() => onProgress?.(1), () => {});
+    return promise;
+  }
+  promise = fetchTextWithProgress(url, onProgress);
+  textCache.set(url, promise);
+  promise.catch(() => textCache.delete(url));
+  return promise;
 }
 
 /**

@@ -1,7 +1,142 @@
-import * as ort from 'onnxruntime-web';
+import * as ort from 'onnxruntime-web/wasm';
 import { readResponseBodyWithProgress } from './fetchWithProgress.js';
 import { parseOnnxArchitecture } from './onnxArchitecture.js';
 import { releaseOnnxSession } from './hostDemoLifecycle.js';
+
+/**
+ * Smallest valid ONNX model (opset 13, one float `Identity` node). Creating a session from it
+ * makes ORT download, compile and initialize its WebAssembly runtime, which ORT otherwise only
+ * starts after the real model has finished downloading.
+ */
+const WARMUP_MODEL_BASE64 = 'CAc6NwoQCgF4EgF5IghJZGVudGl0eRIBZ1oPCgF4EgoKCAgBEgQKAggBYg8KAXkSCgoICAESBAoCCAFCAhAN';
+let ortRuntimeWarmup = null;
+
+function warmUpOrtRuntime() {
+  ortRuntimeWarmup ??= ort.InferenceSession.create(
+    Uint8Array.from(atob(WARMUP_MODEL_BASE64), (c) => c.charCodeAt(0)),
+    { executionProviders: ['wasm'] }
+  ).then(releaseOnnxSession, (error) => {
+    console.warn('ORT runtime warm-up failed:', error);
+  });
+}
+
+/**
+ * Download an ONNX model and create its session, initializing the ORT runtime in parallel.
+ * @param {(ratio: number) => void} [onProgress]
+ */
+async function loadOnnxModel(modelPath, onProgress) {
+  warmUpOrtRuntime();
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
+  let modelResponse;
+  try {
+    modelResponse = await fetch(modelPath, { signal: controller.signal });
+    if (!modelResponse.ok) {
+      throw new Error(`Failed to fetch ONNX model ${modelPath}: ${modelResponse.status}`);
+    }
+  } finally {
+    clearTimeout(timeoutId);
+  }
+  const bytes = await readResponseBodyWithProgress(modelResponse, (r) => {
+    onProgress?.(0.82 * r);
+  });
+  const architecture = parseOnnxArchitecture(bytes);
+
+  onProgress?.(0.88);
+  const session = await ort.InferenceSession.create(bytes.slice().buffer, {
+    executionProviders: ['wasm'],
+    graphOptimizationLevel: 'all'
+  });
+  return { architecture, session, byteLength: bytes.byteLength };
+}
+
+/**
+ * Sessions of models released by a policy switch, or preloaded but not used yet, kept for
+ * reuse (least recently used first out, bounded by model size): switching back to a policy
+ * skips the download and session creation.
+ */
+const MODEL_CACHE_MAX_BYTES = 64 * 1024 * 1024;
+const modelCache = new Map();
+/** Loads started by preloadOnnxModel() that no ONNXModule has taken yet. */
+const pendingModels = new Map();
+/** Bumped by releaseCachedOnnxModels() so loads finishing after a teardown are dropped. */
+let cacheEpoch = 0;
+
+function cacheOnnxModel(modelPath, model) {
+  const previous = modelCache.get(modelPath);
+  modelCache.delete(modelPath);
+  if (previous && previous.session !== model.session) {
+    releaseOnnxSession(previous.session);
+  }
+  modelCache.set(modelPath, model);
+  let total = 0;
+  for (const entry of modelCache.values()) {
+    total += entry.byteLength;
+  }
+  for (const [path, entry] of modelCache) {
+    if (total <= MODEL_CACHE_MAX_BYTES || entry === model) {
+      break;
+    }
+    modelCache.delete(path);
+    total -= entry.byteLength;
+    releaseOnnxSession(entry.session);
+  }
+}
+
+function takeCachedOnnxModel(modelPath) {
+  const model = modelCache.get(modelPath) ?? null;
+  modelCache.delete(modelPath);
+  return model;
+}
+
+function takePendingOnnxModel(modelPath) {
+  const promise = pendingModels.get(modelPath);
+  if (!promise) {
+    return null;
+  }
+  pendingModels.delete(modelPath);
+  // On failure ONNXModule.init() loads again, surfacing the error.
+  return promise.catch(() => null);
+}
+
+/** Release every cached and pending session (e.g. when the host demo is torn down). */
+export function releaseCachedOnnxModels() {
+  cacheEpoch += 1;
+  pendingModels.clear();
+  for (const { session } of modelCache.values()) {
+    releaseOnnxSession(session);
+  }
+  modelCache.clear();
+}
+
+/**
+ * Start loading a model (download + session) ahead of ONNXModule.init(), e.g. while the
+ * MuJoCo scene downloads or when the user hovers a policy. If no module takes it, the
+ * result goes to the session cache.
+ */
+export function preloadOnnxModel(modelPath) {
+  if (!modelPath || modelCache.has(modelPath) || pendingModels.has(modelPath)) {
+    return;
+  }
+  const epoch = cacheEpoch;
+  const promise = loadOnnxModel(modelPath);
+  pendingModels.set(modelPath, promise);
+  promise.then((model) => {
+    if (pendingModels.get(modelPath) !== promise) {
+      // Taken by ONNXModule.init(), or dropped by a teardown.
+      if (epoch !== cacheEpoch) {
+        releaseOnnxSession(model.session);
+      }
+      return;
+    }
+    pendingModels.delete(modelPath);
+    cacheOnnxModel(modelPath, model);
+  }, () => {
+    if (pendingModels.get(modelPath) === promise) {
+      pendingModels.delete(modelPath);
+    }
+  });
+}
 
 export class ONNXModule {
   constructor(config) {
@@ -22,32 +157,16 @@ export class ONNXModule {
    * @param {(ratio: number) => void} [onProgress] ratio in [0,1] for download + WASM session init
    */
   async init(onProgress) {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000);
-    let modelResponse;
-    try {
-      modelResponse = await fetch(this.modelPath, { signal: controller.signal });
-      if (!modelResponse.ok) {
-        throw new Error(`Failed to fetch ONNX model ${this.modelPath}: ${modelResponse.status}`);
-      }
-    } finally {
-      clearTimeout(timeoutId);
-    }
-    const bytes = await readResponseBodyWithProgress(modelResponse, (r) => {
-      onProgress?.(0.82 * r);
-    });
-    const modelArrayBuffer = bytes.slice().buffer;
-    this.architecture = parseOnnxArchitecture(bytes);
+    const model = takeCachedOnnxModel(this.modelPath)
+      ?? await takePendingOnnxModel(this.modelPath)
+      ?? await loadOnnxModel(this.modelPath, onProgress);
+    onProgress?.(1);
+    this._model = model;
+    this.architecture = model.architecture;
+    this.session = model.session;
 
     this.inKeys = this.metaData["in_keys"];
     this.outKeys = this.metaData["out_keys"];
-
-    onProgress?.(0.88);
-    this.session = await ort.InferenceSession.create(modelArrayBuffer, {
-      executionProviders: ['wasm'],
-      graphOptimizationLevel: 'all'
-    });
-    onProgress?.(1);
 
     console.log('ONNX model loaded successfully');
     console.log("inKeys", this.inKeys);
@@ -57,8 +176,12 @@ export class ONNXModule {
     console.log("outputNames", this.session.outputNames);
   }
 
+  /** Hand the session back to the model cache; releaseCachedOnnxModels() frees it. */
   async release() {
-    await releaseOnnxSession(this.session);
+    if (this._model) {
+      cacheOnnxModel(this.modelPath, this._model);
+    }
+    this._model = null;
     this.session = null;
   }
 

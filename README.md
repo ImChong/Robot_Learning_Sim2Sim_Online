@@ -29,6 +29,8 @@ npm run dev
 - `src/simulation/mujocoUtils.js`：场景 / policy 加载工具与 MuJoCo 文件预加载逻辑
 - `src/simulation/policyRunner.js`：ONNX 推理封装与 observation 管线
 - `node_modules/mujoco-js/`：MuJoCo wasm 运行时（npm 包）
+- `scripts/vite-plugin-mujoco-wasm.mjs`：构建时把 mujoco-js 内嵌的 base64 wasm 抽成独立 `.wasm` 并去掉调试段，运行时由 `src/simulation/loadMujoco.js` 流式加载
+- `scripts/vite-plugin-scene-mesh-gzip.mjs`：构建时为 STL 网格生成 `.gz` 副本（GitHub Pages 不压缩 STL），加载器优先下载并解压
 - `public/examples/scenes/`：放置 MJCF 文件与 mesh 资源，运行时会预加载到 MuJoCo 的 MEMFS
 - `public/examples/checkpoints/`：放置 policy 配置 JSON、ONNX 模型与 motion 数据
 
@@ -38,6 +40,7 @@ npm run dev
 - 将 MJCF 文件放到：`public/examples/scenes/<robot>/<robot>.xml`
 - 将该 MJCF 依赖的 mesh / texture 一并放到同目录
 - 把所有文件路径追加到 `public/examples/scenes/files.json`，这样加载器才能在 wasm 文件系统中预加载到 `/working/`
+- 多个场景共用同一套网格时，把这些 XML 放在同一目录并使用相同的 `meshdir`（例如 `g1_amp/scene_g1.xml` 与 `g1_amp/g1_tracking.xml`）：MuJoCo 按文件路径缓存网格编译结果，路径相同才能在策略切换时复用下载和编译
 
 ### 2）添加 policy 配置与 ONNX 模型
 - 新建：`public/examples/checkpoints/<robot>/tracking_policy.json`
