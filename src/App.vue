@@ -4,10 +4,22 @@
     <header class="site-header">
       <div class="header-inner">
         <h1 class="site-title" aria-label="Robot Learning Sim2Sim Online | 人形机器人强化学习在线推理">
-          <svg class="brand-mark" viewBox="4 3 24 24" aria-hidden="true" focusable="false">
-            <path d="M16 5.5v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-            <rect x="7.5" y="9.5" width="17" height="15" rx="6" fill="none" stroke="currentColor" stroke-width="2" />
-            <rect x="11" y="14.5" width="10" height="4" rx="2" fill="currentColor" />
+          <!-- 等轴测 2×2 棋盘地块，对应仿真场景里的地面 -->
+          <svg
+            class="brand-mark"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <path d="M12 4 22 9.5 12 15 2 9.5Z" />
+            <path d="M2 9.5v4L12 19l10-5.5v-4M12 15v4" />
+            <path d="M12 4 17 6.75 12 9.5 7 6.75Z" fill="currentColor" stroke="none" />
+            <path d="M12 9.5 17 12.25 12 15 7 12.25Z" fill="currentColor" stroke="none" />
           </svg>
           <span class="brand-name">Robot Learning Sim2Sim Online</span>
           <span class="brand-tagline">人形机器人强化学习在线推理</span>
