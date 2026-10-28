@@ -39,10 +39,10 @@ export function pipelineNodeClickAction(node) {
 
 export function pipelineNodeHintIcon(action) {
   if (action === 'open-architecture') {
-    return 'mdi-sitemap-outline';
+    return 'ph-tree-structure';
   }
   if (action === 'open-stack') {
-    return 'mdi-layers-outline';
+    return 'ph-stack';
   }
-  return 'mdi-chart-line-variant';
+  return 'ph-wave-sine';
 }

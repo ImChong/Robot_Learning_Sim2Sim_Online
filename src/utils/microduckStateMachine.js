@@ -18,7 +18,7 @@ export const MICRODUCK_STATES = [
     value: 'walk',
     labelKey: 'microduckStateWalk',
     hintKey: 'microduckStateWalkHint',
-    icon: 'mdi-walk',
+    icon: 'ph-person-simple-walk',
     policyPath: `${CHECKPOINT_ROOT}/walk_policy.json`,
     onnxPath: `${CHECKPOINT_ROOT}/alpha_walking.onnx`,
     commandMode: 'velocity'
@@ -27,7 +27,7 @@ export const MICRODUCK_STATES = [
     value: 'stand',
     labelKey: 'microduckStateStand',
     hintKey: 'microduckStateStandHint',
-    icon: 'mdi-human-male',
+    icon: 'ph-person-simple',
     policyPath: `${CHECKPOINT_ROOT}/stand_policy.json`,
     onnxPath: `${CHECKPOINT_ROOT}/alpha_stand.onnx`,
     commandMode: 'zeros'
@@ -36,7 +36,7 @@ export const MICRODUCK_STATES = [
     value: 'sitstand',
     labelKey: 'microduckStateSitstand',
     hintKey: 'microduckStateSitstandHint',
-    icon: 'mdi-seat-recline-normal',
+    icon: 'ph-chair',
     policyPath: `${CHECKPOINT_ROOT}/sitstand_policy.json`,
     onnxPath: `${CHECKPOINT_ROOT}/alpha_sitstand.onnx`,
     commandMode: 'sitstand'
@@ -45,7 +45,7 @@ export const MICRODUCK_STATES = [
     value: 'roulade',
     labelKey: 'microduckStateRoulade',
     hintKey: 'microduckStateRouladeHint',
-    icon: 'mdi-rotate-360',
+    icon: 'ph-arrows-clockwise',
     policyPath: `${CHECKPOINT_ROOT}/roulade_policy.json`,
     onnxPath: `${CHECKPOINT_ROOT}/roulade.onnx`,
     commandMode: 'zeros',

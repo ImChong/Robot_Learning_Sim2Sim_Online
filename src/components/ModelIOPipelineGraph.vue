@@ -240,12 +240,12 @@ export default {
     scrollHint() {
       if (this.isMobile) {
         return this.language === 'en'
-          ? 'Click a node for all its signals · Click Policy net for Architecture · Drag to pan · Pinch to zoom'
-          : '点击节点查看该节点全部曲线 · 点击策略网络打开模型架构 · 拖空白平移 · 双指缩放';
+          ? 'Tap a node to plot its signals · Obs Warehouse opens stacking · Policy net opens Architecture · Drag to pan · Pinch to zoom'
+          : '点击节点查看全部信号曲线 · 观测仓库打开张量堆叠 · 策略网络打开模型架构 · 拖空白平移 · 双指缩放';
       }
       return this.language === 'en'
-        ? 'Click a node for all its signals · Click Policy net for Architecture · Drag to pan · Wheel to zoom'
-        : '点击节点查看该节点全部曲线 · 点击策略网络打开模型架构 · 拖空白平移 · 滚轮缩放';
+        ? 'Click a node to plot its signals · Obs Warehouse opens stacking · Policy net opens Architecture · Drag to pan · Wheel to zoom'
+        : '点击节点查看全部信号曲线 · 观测仓库打开张量堆叠 · 策略网络打开模型架构 · 拖空白平移 · 滚轮缩放';
     },
     viewportStyle() {
       if (this.isMobile) {
@@ -638,9 +638,9 @@ export default {
 .pipeline-viewport {
   position: relative;
   max-width: 100%;
-  border-radius: 10px;
-  border: 1px solid rgba(var(--v-theme-primary), 0.2);
-  background: #0b1018;
+  border-radius: 12px;
+  border: 1px solid var(--viz-line);
+  background: var(--viz-bg);
   overscroll-behavior: contain;
 }
 
@@ -692,12 +692,11 @@ export default {
   padding: 2px 10px;
   font-size: 0.7rem;
   font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.7);
-  background: rgba(11, 16, 24, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 999px;
+  letter-spacing: 0.02em;
+  color: var(--viz-ink-muted);
+  background: rgba(24, 24, 24, 0.85);
+  border: 1px solid var(--viz-line);
+  border-radius: 6px;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -729,9 +728,9 @@ export default {
 .pipeline-grid {
   position: absolute;
   inset: 0;
-  background-color: #0b1018;
+  background-color: var(--viz-bg);
   background-image:
-    radial-gradient(circle at 1px 1px, rgba(148, 163, 184, 0.14) 1px, transparent 0);
+    radial-gradient(circle at 1px 1px, var(--viz-grid) 1px, transparent 0);
   background-size: 18px 18px;
   pointer-events: none;
 }
@@ -745,9 +744,9 @@ export default {
 
 .pipeline-edge {
   fill: none;
-  stroke: rgba(100, 116, 139, 0.55);
+  stroke: rgba(155, 155, 155, 0.4);
   stroke-width: 1.5;
-  transition: stroke 0.2s ease;
+  transition: stroke var(--transition);
 }
 
 .pipeline-edge-active {
@@ -757,20 +756,20 @@ export default {
 }
 
 .pipeline-edge-scope {
-  stroke: rgba(76, 179, 212, 0.75);
+  stroke: rgba(var(--v-theme-primary), 0.75);
   stroke-width: 1.5;
   stroke-dasharray: 6 4;
 }
 
 .pipeline-edge-loopback {
-  stroke: rgba(148, 163, 184, 0.72);
+  stroke: rgba(155, 155, 155, 0.72);
   stroke-width: 1.5;
   stroke-dasharray: 8 5;
 }
 
 .pipeline-node-scope .pipeline-node-card {
-  border-color: rgba(76, 179, 212, 0.55);
-  background: linear-gradient(180deg, rgba(15, 35, 48, 0.95) 0%, rgba(10, 20, 30, 0.98) 100%);
+  border-color: rgba(var(--v-theme-primary), 0.55);
+  background: var(--viz-panel);
 }
 
 .pipeline-node {
@@ -809,8 +808,8 @@ export default {
   min-height: 0;
   padding: 6px 8px;
   border-radius: 8px;
-  border: 1px solid rgba(71, 85, 105, 0.65);
-  background: linear-gradient(180deg, rgba(30, 41, 59, 0.95) 0%, rgba(15, 23, 42, 0.98) 100%);
+  border: 1px solid var(--viz-line);
+  background: var(--viz-panel);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
   cursor: default;
   user-select: text;
@@ -827,12 +826,12 @@ export default {
 
 .pipeline-node-card-clickable:hover {
   border-color: rgba(var(--v-theme-primary), 0.55);
-  background: linear-gradient(180deg, rgba(35, 48, 68, 0.96) 0%, rgba(18, 28, 44, 0.99) 100%);
+  background: var(--viz-raised);
 }
 
 .pipeline-node-probed .pipeline-node-card {
-  border-color: rgba(76, 179, 212, 0.55);
-  box-shadow: 0 0 0 1px rgba(76, 179, 212, 0.2), 0 4px 14px rgba(0, 0, 0, 0.4);
+  border-color: rgba(var(--v-theme-primary), 0.8);
+  box-shadow: 0 0 0 1px rgba(var(--v-theme-primary), 0.3), 0 4px 14px rgba(0, 0, 0, 0.4);
 }
 
 .pipeline-node-scope-hint {
@@ -882,14 +881,14 @@ export default {
 .pipeline-node-title {
   font-size: 0.72rem;
   font-weight: 700;
-  color: #e2e8f0;
+  color: var(--viz-ink);
   line-height: 1.25;
   white-space: nowrap;
 }
 
 .pipeline-node-subtitle {
   font-size: 0.62rem;
-  color: #94a3b8;
+  color: var(--viz-ink-muted);
   margin-top: 2px;
   white-space: nowrap;
   overflow-wrap: anywhere;
@@ -900,13 +899,13 @@ export default {
   display: flex;
   gap: 6px;
   margin-top: 3px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 0.6rem;
   line-height: 1.3;
 }
 
 .pipeline-node-line-probed .pipeline-node-key {
-  color: rgba(76, 179, 212, 0.95);
+  color: rgb(var(--v-theme-primary));
 }
 
 .pipeline-shell-mobile .pipeline-node-title {
@@ -918,14 +917,14 @@ export default {
 }
 
 .pipeline-node-key {
-  color: #64748b;
+  color: var(--viz-ink-faint);
   white-space: nowrap;
   flex: 0 1 auto;
   min-width: 0;
 }
 
 .pipeline-node-val {
-  color: #94a3b8;
+  color: var(--viz-ink-muted);
   white-space: nowrap;
   flex-shrink: 0;
   margin-left: auto;
@@ -933,7 +932,7 @@ export default {
 }
 
 .pipeline-node-meta {
-  color: #94a3b8;
+  color: var(--viz-ink-muted);
 }
 
 .pipeline-port {
@@ -942,8 +941,8 @@ export default {
   border-radius: 50%;
   flex-shrink: 0;
   align-self: center;
-  background: #1e293b;
-  border: 2px solid #475569;
+  background: var(--viz-raised);
+  border: 2px solid var(--viz-ink-faint);
 }
 
 .pipeline-node-live .pipeline-port {

@@ -1,4 +1,28 @@
-
+// 圆角全部落在 Tailwind 刻度上（4 / 8 / 12 / 16），字体与 App.vue 的 --font-sans 保持一致。
 @use 'vuetify/settings' with (
-    $body-font-family: ('Google Sans', 'Noto Sans SC', Arial, sans-serif)
+    $body-font-family: ('Geist Sans', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans CJK SC', 'Noto Sans SC', sans-serif),
+    $card-border-radius: 16px,
+    $card-title-font-size: 1.125rem,
+    $card-title-font-weight: 600,
+    $card-title-line-height: 1.75rem,
+    $card-title-letter-spacing: -0.01em,
+    $alert-border-radius: 12px,
+    $dialog-border-radius: 16px,
+    $menu-content-border-radius: 12px,
+    $field-border-radius: 8px,
+    $button-border-radius: 8px,
+    $button-text-transform: none,
+    $button-text-letter-spacing: 0,
+    $button-font-weight: 600,
+    $typography: (
+        'caption': (
+            'size': .75rem,
+            'line-height': 1rem,
+            'letter-spacing': 0,
+        ),
+        'body-2': (
+            'line-height': 1.25rem,
+            'letter-spacing': 0,
+        ),
+    )
 );
