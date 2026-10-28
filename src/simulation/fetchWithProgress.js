@@ -45,6 +45,21 @@ export async function readResponseBodyWithProgress(response, onProgress) {
   return out;
 }
 
+/** True when `bytes` starts with the gzip magic number. */
+export function isGzipData(bytes) {
+  return bytes.length >= 2 && bytes[0] === 0x1f && bytes[1] === 0x8b;
+}
+
+/**
+ * Inflate gzip data with the browser's DecompressionStream.
+ * @param {Uint8Array} bytes
+ * @returns {Promise<Uint8Array>}
+ */
+export async function gunzipBytes(bytes) {
+  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+
 /**
  * @param {string} url
  * @param {(ratio: number) => void} [onProgress]

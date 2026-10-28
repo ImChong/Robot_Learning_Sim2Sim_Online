@@ -1802,11 +1802,11 @@ export default {
         throw new Error('initHostDemo requires a MuJoCo policy');
       }
       report(0.02);
-      const [{ MuJoCoDemo }, loadMujocoModule] = await Promise.all([
+      const [{ MuJoCoDemo }, { default: loadMujoco }] = await Promise.all([
         import('@/simulation/main.js'),
-        import('mujoco-js')
+        import('@/simulation/loadMujoco.js')
       ]);
-      const mujoco = await loadMujocoModule.default();
+      const mujoco = await loadMujoco();
       report(0.10);
       this.demo = new MuJoCoDemo(mujoco);
       this.demo.setVisualTheme?.(this.visualTheme);

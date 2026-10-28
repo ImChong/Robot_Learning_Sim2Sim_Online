@@ -2,7 +2,8 @@
 import Components from 'unplugin-vue-components/vite'
 import Vue from '@vitejs/plugin-vue'
 import Vuetify, { transformAssetUrls } from 'vite-plugin-vuetify'
-import Fonts from 'unplugin-fonts/vite'
+import MujocoWasm from './scripts/vite-plugin-mujoco-wasm.mjs'
+import SceneMeshGzip from './scripts/vite-plugin-scene-mesh-gzip.mjs'
 
 // Utilities
 import { defineConfig } from 'vite'
@@ -25,26 +26,21 @@ export default defineConfig({
       },
     }),
     Components(),
-    Fonts({
-      fontsource: {
-        families: [
-          {
-            name: 'Roboto',
-            weights: [300, 400, 500, 700],
-            subsets: ['latin'],
-          },
-        ],
-      },
-    }),
+    MujocoWasm(),
+    SceneMeshGzip(),
   ],
   optimizeDeps: {
-    exclude: ['vuetify', 'onnxruntime-web'],
+    exclude: ['vuetify', 'onnxruntime-web', 'onnxruntime-web/wasm'],
   },
   define: { 'process.env': {} },
   build: {
     rollupOptions: {
       output: {
         manualChunks(id) {
+          // Keep Vite's dynamic-import helper in the eagerly loaded vendor chunk. Otherwise
+          // Rollup puts it in vendor-mujoco (mujoco-js uses import()), making the entry
+          // statically import the whole MuJoCo chunk before the app can mount.
+          if (id.includes('vite/preload-helper')) return 'vendor';
           if (id.includes('node_modules')) {
             if (id.includes('vuetify')) return 'vendor-vuetify';
             if (id.includes('three')) return 'vendor-three';

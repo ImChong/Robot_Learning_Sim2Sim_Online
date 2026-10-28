@@ -1,4 +1,4 @@
-import * as ort from 'onnxruntime-web';
+import * as ort from 'onnxruntime-web/wasm';
 import { ONNXModule } from './onnxHelper.js';
 import { Observations } from './observationHelpers.js';
 import { TrackingHelper } from './trackingHelper.js';

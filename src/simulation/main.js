@@ -2,12 +2,14 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { DragStateManager } from './utils/DragStateManager.js';
 import {
+  discardPreloadedPolicyAssets,
   downloadExampleScenesFolder,
   ensureSceneAssetsForPath,
   getPosition,
   getQuaternion,
   initialSceneAssetPrefixes,
   toMujocoPos,
+  preloadPolicyAssets,
   reloadScene,
   reloadPolicy
 } from './mujocoUtils.js';
@@ -235,6 +237,8 @@ export class MuJoCoDemo {
       while (this.policyRunner?.isInferencing) {
         await new Promise((resolve) => setTimeout(resolve, 10));
       }
+      // Policy JSON/ONNX/ORT runtime don't depend on the scene: load them alongside it.
+      preloadPolicyAssets(nextPolicyPath, options.onnxPath);
       await ensureSceneAssetsForPath(this.mujoco, nextScenePath, (p) => {
         report(sceneDownload * p);
       });
@@ -335,6 +339,7 @@ export class MuJoCoDemo {
     }
 
     await this.releasePolicyResources();
+    discardPreloadedPolicyAssets();
 
     if (this.simulation) {
       this.simulation.free();

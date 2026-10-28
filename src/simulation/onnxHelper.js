@@ -1,7 +1,90 @@
-import * as ort from 'onnxruntime-web';
+import * as ort from 'onnxruntime-web/wasm';
 import { readResponseBodyWithProgress } from './fetchWithProgress.js';
 import { parseOnnxArchitecture } from './onnxArchitecture.js';
 import { releaseOnnxSession } from './hostDemoLifecycle.js';
+
+/**
+ * Smallest valid ONNX model (opset 13, one float `Identity` node). Creating a session from it
+ * makes ORT download, compile and initialize its WebAssembly runtime, which ORT otherwise only
+ * starts after the real model has finished downloading.
+ */
+const WARMUP_MODEL_BASE64 = 'CAc6NwoQCgF4EgF5IghJZGVudGl0eRIBZ1oPCgF4EgoKCAgBEgQKAggBYg8KAXkSCgoICAESBAoCCAFCAhAN';
+let ortRuntimeWarmup = null;
+
+function warmUpOrtRuntime() {
+  ortRuntimeWarmup ??= ort.InferenceSession.create(
+    Uint8Array.from(atob(WARMUP_MODEL_BASE64), (c) => c.charCodeAt(0)),
+    { executionProviders: ['wasm'] }
+  ).then(releaseOnnxSession, (error) => {
+    console.warn('ORT runtime warm-up failed:', error);
+  });
+}
+
+/**
+ * Download an ONNX model and create its session, initializing the ORT runtime in parallel.
+ * @param {(ratio: number) => void} [onProgress]
+ */
+async function loadOnnxModel(modelPath, onProgress) {
+  warmUpOrtRuntime();
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
+  let modelResponse;
+  try {
+    modelResponse = await fetch(modelPath, { signal: controller.signal });
+    if (!modelResponse.ok) {
+      throw new Error(`Failed to fetch ONNX model ${modelPath}: ${modelResponse.status}`);
+    }
+  } finally {
+    clearTimeout(timeoutId);
+  }
+  const bytes = await readResponseBodyWithProgress(modelResponse, (r) => {
+    onProgress?.(0.82 * r);
+  });
+  const architecture = parseOnnxArchitecture(bytes);
+
+  onProgress?.(0.88);
+  const session = await ort.InferenceSession.create(bytes.slice().buffer, {
+    executionProviders: ['wasm'],
+    graphOptimizationLevel: 'all'
+  });
+  return { architecture, session };
+}
+
+/** @type {{ path: string, promise: Promise<{ architecture: unknown, session: ort.InferenceSession }> } | null} */
+let preloadedModel = null;
+
+/**
+ * Start loading a model ahead of ONNXModule.init() (e.g. while the MuJoCo scene downloads).
+ * Only the most recent preload is kept; an unused one is released.
+ */
+export function preloadOnnxModel(modelPath) {
+  if (!modelPath || preloadedModel?.path === modelPath) {
+    return;
+  }
+  discardPreloadedOnnxModel();
+  const promise = loadOnnxModel(modelPath);
+  // Errors resurface when ONNXModule.init() retries without the preload.
+  promise.catch(() => {});
+  preloadedModel = { path: modelPath, promise };
+}
+
+export function discardPreloadedOnnxModel() {
+  if (!preloadedModel) {
+    return;
+  }
+  const { promise } = preloadedModel;
+  preloadedModel = null;
+  promise.then(({ session }) => releaseOnnxSession(session), () => {});
+}
+
+function takePreloadedOnnxModel(modelPath) {
+  if (preloadedModel?.path !== modelPath) {
+    return null;
+  }
+  const { promise } = preloadedModel;
+  preloadedModel = null;
+  return promise.catch(() => null);
+}
 
 export class ONNXModule {
   constructor(config) {
@@ -22,32 +105,14 @@ export class ONNXModule {
    * @param {(ratio: number) => void} [onProgress] ratio in [0,1] for download + WASM session init
    */
   async init(onProgress) {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000);
-    let modelResponse;
-    try {
-      modelResponse = await fetch(this.modelPath, { signal: controller.signal });
-      if (!modelResponse.ok) {
-        throw new Error(`Failed to fetch ONNX model ${this.modelPath}: ${modelResponse.status}`);
-      }
-    } finally {
-      clearTimeout(timeoutId);
-    }
-    const bytes = await readResponseBodyWithProgress(modelResponse, (r) => {
-      onProgress?.(0.82 * r);
-    });
-    const modelArrayBuffer = bytes.slice().buffer;
-    this.architecture = parseOnnxArchitecture(bytes);
+    const preloaded = await takePreloadedOnnxModel(this.modelPath);
+    const { architecture, session } = preloaded ?? await loadOnnxModel(this.modelPath, onProgress);
+    onProgress?.(1);
+    this.architecture = architecture;
+    this.session = session;
 
     this.inKeys = this.metaData["in_keys"];
     this.outKeys = this.metaData["out_keys"];
-
-    onProgress?.(0.88);
-    this.session = await ort.InferenceSession.create(modelArrayBuffer, {
-      executionProviders: ['wasm'],
-      graphOptimizationLevel: 'all'
-    });
-    onProgress?.(1);
 
     console.log('ONNX model loaded successfully');
     console.log("inKeys", this.inKeys);

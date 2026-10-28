@@ -2,10 +2,13 @@ import * as THREE from 'three';
 import { Reflector } from './utils/Reflector.js';
 import { REFLECTION_QUALITY_PRESETS } from './reflectionQuality.js';
 import { PolicyRunner } from './policyRunner.js';
+import { discardPreloadedOnnxModel, preloadOnnxModel } from './onnxHelper.js';
 import { toFloatArray } from './utils/math.js';
 import {
   createWeightedProgressReporter,
   fetchTextWithProgress,
+  gunzipBytes,
+  isGzipData,
   readResponseBodyWithProgress
 } from './fetchWithProgress.js';
 
@@ -164,6 +167,46 @@ export function filterSceneFilesByPrefixes(allFiles, prefixes) {
   return allFiles.filter((rel) => prefixes.some((prefix) => rel.startsWith(prefix)));
 }
 
+/**
+ * Production builds ship `<mesh>.gz` copies (scripts/vite-plugin-scene-mesh-gzip.mjs) because
+ * static hosts such as GitHub Pages serve STL files without compression.
+ */
+const COMPRESSED_SCENE_ASSET_RE = /\.stl$/i;
+const useCompressedSceneAssets = import.meta.env?.PROD === true
+  && typeof DecompressionStream === 'function';
+
+async function fetchCompressedSceneAsset(url, signal, onProgress) {
+  try {
+    const response = await fetch(`${url}.gz`, { signal });
+    if (!response.ok) {
+      return null;
+    }
+    const bytes = await readResponseBodyWithProgress(response, onProgress);
+    // A host may already have decoded it via Content-Encoding.
+    return isGzipData(bytes) ? await gunzipBytes(bytes) : bytes;
+  } catch (error) {
+    if (signal.aborted) {
+      throw error;
+    }
+    console.warn(`Compressed scene asset unavailable, using ${url}:`, error);
+    return null;
+  }
+}
+
+async function fetchSceneAssetBytes(rel, url, signal, onProgress) {
+  if (useCompressedSceneAssets && COMPRESSED_SCENE_ASSET_RE.test(rel)) {
+    const bytes = await fetchCompressedSceneAsset(url, signal, onProgress);
+    if (bytes) {
+      return bytes;
+    }
+  }
+  const response = await fetch(url, { signal });
+  if (!response.ok) {
+    throw new Error(`Failed to load scene asset ${url}: ${response.status}`);
+  }
+  return readResponseBodyWithProgress(response, onProgress);
+}
+
 function sceneAssetExistsInFs(mujoco, relativePath) {
   return mujoco.FS.analyzePath(`/working/${relativePath}`).exists;
 }
@@ -209,6 +252,37 @@ export async function reloadScene(mjcf_path) {
   this.policyInitialState = null;
 }
 
+/** Policy JSON requested ahead of reloadPolicy(), see preloadPolicyAssets(). */
+let preloadedPolicyText = null;
+
+/**
+ * Start fetching a policy's JSON and ONNX model (which also pulls in the ORT wasm
+ * runtime) so they load while the MuJoCo runtime and scene are still loading.
+ */
+export function preloadPolicyAssets(policyPath, onnxPath) {
+  if (policyPath && preloadedPolicyText?.path !== policyPath) {
+    const promise = fetchTextWithProgress(policyPath);
+    // Errors resurface when reloadPolicy() fetches again without the preload.
+    promise.catch(() => {});
+    preloadedPolicyText = { path: policyPath, promise };
+  }
+  preloadOnnxModel(onnxPath);
+}
+
+export function discardPreloadedPolicyAssets() {
+  preloadedPolicyText = null;
+  discardPreloadedOnnxModel();
+}
+
+function takePreloadedPolicyText(policyPath) {
+  if (preloadedPolicyText?.path !== policyPath) {
+    return null;
+  }
+  const { promise } = preloadedPolicyText;
+  preloadedPolicyText = null;
+  return promise.catch(() => null);
+}
+
 export async function reloadPolicy(policy_path, options = {}) {
   this.currentPolicyPath = policy_path;
   console.log('Reloading policy:', policy_path);
@@ -227,9 +301,10 @@ export async function reloadPolicy(policy_path, options = {}) {
     }
   };
 
-  const policyJsonText = await fetchTextWithProgress(policy_path, (r) => {
-    reportInit(0.12 * r);
-  });
+  const policyJsonText = await takePreloadedPolicyText(policy_path)
+    ?? await fetchTextWithProgress(policy_path, (r) => {
+      reportInit(0.12 * r);
+    });
   const config = JSON.parse(policyJsonText);
   if (options?.onnxPath) {
     config.onnx = { ...(config.onnx ?? {}), path: options.onnxPath };
@@ -792,15 +867,10 @@ export async function downloadExampleScenesFolder(mujoco, onProgress, options = 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000);
       try {
-        const response = await fetch(url, { signal: controller.signal });
-        if (!response.ok) {
-          throw new Error(`Failed to load scene asset ${url}: ${response.status}`);
-        }
+        const buf = await fetchSceneAssetBytes(rel, url, controller.signal, (r) => reporter(i, r));
         if (rel.match(/\.(png|stl|skn)$/i)) {
-          const buf = await readResponseBodyWithProgress(response, (r) => reporter(i, r));
-          writeToFs(rel, new Uint8Array(buf));
+          writeToFs(rel, buf);
         } else {
-          const buf = await readResponseBodyWithProgress(response, (r) => reporter(i, r));
           writeToFs(rel, new TextDecoder('utf-8').decode(buf));
         }
       } finally {
