@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildPipelineGraph, obsSourceIds } from '../src/simulation/pipelineGraphLayout.js';
+import { buildPipelineGraph, obsSourceIds, wrapObsColumns } from '../src/simulation/pipelineGraphLayout.js';
 import { buildAtomicNodes } from '../src/simulation/pipelineAtomicNodes.js';
 
 const baseAtomic = buildAtomicNodes(
@@ -157,4 +157,44 @@ test('obsSourceIds only wires observations to the signals they read', () => {
   ]) {
     assert.deepEqual(obsSourceIds({ id }, false), [], id);
   }
+});
+
+test('wrapObsColumns keeps short stacks in one column', () => {
+  const nodes = Array.from({ length: 9 }, () => ({ height: 79 }));
+  assert.equal(wrapObsColumns(nodes, 740).length, 1);
+});
+
+test('wrapObsColumns splits a tall stack into balanced, ordered columns', () => {
+  const nodes = Array.from({ length: 29 }, (_, i) => ({ id: `n${i}`, height: 79 }));
+  const columns = wrapObsColumns(nodes, 740);
+  assert.equal(columns.length, 3);
+  assert.deepEqual(columns.map((column) => column.length), [10, 10, 9]);
+  // Concat order reads column by column.
+  assert.deepEqual(columns.flat().map((node) => node.id), nodes.map((node) => node.id));
+});
+
+test('buildPipelineGraph lays a wrapped observation stack out side by side', () => {
+  const obsNodes = Array.from({ length: 29 }, (_, i) => ({
+    id: `obs-Term${i}`,
+    kind: 'signal',
+    group: 'obs',
+    title: `Term ${i}`,
+    width: 184,
+    height: 79,
+    lines: [{ k: 'x' }],
+    probeKeys: ['x']
+  }));
+  const graph = buildPipelineGraph({
+    ...baseTelemetry,
+    atomicNodes: [...baseAtomic.filter((n) => n.group !== 'obs'), ...obsNodes]
+  }, 'en');
+  const placed = graph.nodes.filter((n) => n.id.startsWith('obs-Term'));
+  const xs = [...new Set(placed.map((n) => n.x))];
+  assert.equal(xs.length, 3);
+  const lane = graph.lanes.find((l) => l.id === 'obs');
+  for (const node of placed) {
+    assert.ok(node.x >= lane.x && node.x + node.width <= lane.x + lane.width, node.id);
+  }
+  const bottom = Math.max(...placed.map((n) => n.y + n.height));
+  assert.ok(bottom < 1200, `wrapped stack bottom ${bottom}`);
 });

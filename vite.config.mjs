@@ -50,6 +50,9 @@ export default defineConfig({
             if (id.includes('three')) return 'vendor-three';
             if (id.includes('onnxruntime-web')) return 'vendor-onnx';
             if (id.includes('mujoco-js')) return 'vendor-mujoco';
+            // Loaded on demand by src/utils/katexLoader.js; keep it out of the
+            // eagerly preloaded vendor chunk.
+            if (id.includes('katex')) return 'vendor-katex';
             return 'vendor';
           }
         }

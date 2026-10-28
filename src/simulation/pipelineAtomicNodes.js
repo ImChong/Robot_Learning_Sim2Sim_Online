@@ -69,12 +69,12 @@ function motorNodeText(controlType, zh) {
   if (controlType === 'mujoco_position') {
     return {
       title: zh ? '执行器指令' : 'Actuator ctrl',
-      subtitle: zh ? 'MuJoCo 位置伺服' : 'MuJoCo position servo'
+      subtitle: zh ? 'MuJoCo 位置伺服 $u = q^*$' : 'MuJoCo servo $u = q^*$'
     };
   }
   return {
     title: zh ? '电机力矩' : 'Motor Torque',
-    subtitle: 'τ = Kp(q*−q) − Kd·q̇'
+    subtitle: '$\\tau = K_p (q^* - q) - K_d \\dot q$'
   };
 }
 
@@ -132,7 +132,7 @@ export function buildAtomicNodes(runner, state, obsVector, obsLayout, lang = 'zh
     kind: 'signal',
     group: 'sim',
     title: zh ? '根角速度' : 'Root AngVel',
-    subtitle: zh ? '机体系' : 'body frame',
+    subtitle: zh ? '机体系 $\\omega_b$' : 'body frame $\\omega_b$',
     lines: vec3Lines(''),
     probeKeys: VEC3_KEYS
   });
@@ -142,7 +142,7 @@ export function buildAtomicNodes(runner, state, obsVector, obsLayout, lang = 'zh
     kind: 'joints',
     group: 'sim',
     title: zh ? '关节位置' : 'Joint Position',
-    subtitle: zh ? 'MuJoCo qpos' : 'MuJoCo qpos',
+    subtitle: '$q$ · MuJoCo qpos',
     lines: jointDimLines(jointNames.length, zh),
     probeKeys: jointKeys
   });
@@ -152,7 +152,7 @@ export function buildAtomicNodes(runner, state, obsVector, obsLayout, lang = 'zh
     kind: 'joints',
     group: 'sim',
     title: zh ? '关节速度' : 'Joint Velocity',
-    subtitle: zh ? 'MuJoCo qvel' : 'MuJoCo qvel',
+    subtitle: '$\\dot q$ · MuJoCo qvel',
     lines: jointDimLines(jointNames.length, zh),
     probeKeys: jointKeys
   });
@@ -162,7 +162,7 @@ export function buildAtomicNodes(runner, state, obsVector, obsLayout, lang = 'zh
     kind: 'signal',
     group: 'sim',
     title: zh ? '速度指令 vx' : 'Cmd vx',
-    subtitle: zh ? '前后' : 'forward',
+    subtitle: zh ? '前后 $v_x$' : 'forward $v_x$',
     lines: [{ k: 'vx' }],
     probeKeys: ['vx']
   });
@@ -171,7 +171,7 @@ export function buildAtomicNodes(runner, state, obsVector, obsLayout, lang = 'zh
     kind: 'signal',
     group: 'sim',
     title: zh ? '速度指令 vy' : 'Cmd vy',
-    subtitle: zh ? '左右' : 'lateral',
+    subtitle: zh ? '左右 $v_y$' : 'lateral $v_y$',
     lines: [{ k: 'vy' }],
     probeKeys: ['vy']
   });
@@ -180,7 +180,7 @@ export function buildAtomicNodes(runner, state, obsVector, obsLayout, lang = 'zh
     kind: 'signal',
     group: 'sim',
     title: zh ? '速度指令 yaw' : 'Cmd yaw',
-    subtitle: zh ? '转向' : 'turn rate',
+    subtitle: zh ? '转向 $\\omega_z$' : 'turn rate $\\omega_z$',
     lines: [{ k: 'yaw' }],
     probeKeys: ['yaw']
   });
@@ -191,7 +191,7 @@ export function buildAtomicNodes(runner, state, obsVector, obsLayout, lang = 'zh
       kind: 'joints',
       group: 'preprocess',
       title: zh ? '关节相对化' : 'Joint relative',
-      subtitle: 'q − q₀',
+      subtitle: '$q - q_0$',
       lines: jointDimLines(jointNames.length, zh),
       probeKeys: jointKeys
     });
@@ -214,8 +214,8 @@ export function buildAtomicNodes(runner, state, obsVector, obsLayout, lang = 'zh
     group: 'output',
     title: zh ? '动作' : 'Action',
     subtitle: Number.isFinite(clip)
-      ? (zh ? `裁剪到 ±${clip}` : `clipped to ±${clip}`)
-      : (zh ? '网络输出' : 'network output'),
+      ? `$a = \\operatorname{clip}(\\hat a, \\pm ${clip})$`
+      : '$a = \\hat a$',
     lines: jointDimLines(jointNames.length, zh),
     probeKeys: jointKeys
   });
@@ -225,7 +225,7 @@ export function buildAtomicNodes(runner, state, obsVector, obsLayout, lang = 'zh
     kind: 'joints',
     group: 'output',
     title: zh ? '关节目标' : 'Joint Target',
-    subtitle: 'q* = q₀ + s·a',
+    subtitle: '$q^* = q_0 + s \\cdot a$',
     lines: jointDimLines(jointNames.length, zh),
     probeKeys: jointKeys
   });

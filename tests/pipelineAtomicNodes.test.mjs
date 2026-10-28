@@ -64,7 +64,7 @@ test('buildAtomicNodes folds the action clip into the action node', () => {
   const nodes = buildAtomicNodes(runner, state, obsVector, obsLayout, 'en');
   // The clip runs on the ONNX output, it is not an observation preprocessing step.
   assert.equal(nodes.find((n) => n.id === 'prep-action-clip'), undefined);
-  assert.match(nodes.find((n) => n.id === 'out-action').subtitle, /±10/);
+  assert.match(nodes.find((n) => n.id === 'out-action').subtitle, /\\pm 10/);
 });
 
 test('buildAtomicNodes summarizes per-joint output nodes', () => {

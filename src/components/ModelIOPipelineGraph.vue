@@ -29,7 +29,7 @@
     <p class="pipeline-caption text-caption">
       <template v-if="captionStage">
         <strong class="pipeline-caption-title">{{ captionStage.step }} · {{ captionStage.label }}</strong>
-        {{ captionStage.description }}
+        <MathText :text="captionStage.description" />
       </template>
       <template v-else>{{ isMobile ? text.overviewMobile : text.overview }}</template>
     </p>
@@ -168,11 +168,13 @@
                     class="pipeline-node-scope-hint"
                   />
                   <div class="pipeline-node-title" :title="node.title">{{ node.title }}</div>
-                  <div
+                  <MathText
                     v-if="node.subtitle"
+                    tag="div"
                     class="pipeline-node-subtitle"
-                    :title="node.subtitle"
-                  >{{ node.subtitle }}</div>
+                    :title="plainText(node.subtitle)"
+                    :text="node.subtitle"
+                  />
                 </div>
                 <div
                   class="pipeline-node-card"
@@ -273,8 +275,10 @@
 </template>
 
 <script>
+import MathText from '@/components/MathText.vue';
 import { buildPipelineGraph } from '@/simulation/pipelineGraphLayout.js';
 import { splitNodeLines } from '@/simulation/pipelineAtomicNodes.js';
+import { mathTextToPlain } from '@/utils/mathText.js';
 import { portPointFromLayoutNode } from '@/simulation/pipelineGraphEdgeCoords.js';
 import {
   pipelineNodeClickAction,
@@ -395,7 +399,7 @@ function clampScale(scale) {
 
 export default {
   name: 'ModelIOPipelineGraph',
-  components: {},
+  components: { MathText },
   props: {
     telemetry: {
       type: Object,
@@ -570,6 +574,9 @@ export default {
     },
     markUserGestured() {
       this.viewMode = 'manual';
+    },
+    plainText(text) {
+      return mathTextToPlain(text);
     },
     nodeLines(node) {
       return this.nodeLineMap.get(node.id) ?? { rows: [], chips: [] };

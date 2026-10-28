@@ -26,6 +26,7 @@
   "dependencies": {
     "@fontsource/roboto": "5.2.5",
     "@mdi/font": "7.4.47",
+    "katex": "0.19.0",
     "mujoco-js": "^0.0.7",
     "onnxruntime-web": "^1.21.1",
     "three": "0.151.3",

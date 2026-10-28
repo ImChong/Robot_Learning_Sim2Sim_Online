@@ -10,6 +10,11 @@ const MARGIN_Y = 22;
 const LANE_HEADER = 44;
 const LANE_PAD_X = 18;
 const HISTORY_WIDTH = 232;
+// Tall observation stacks (Tracking has ~30 terms) wrap into side-by-side
+// sub-columns so the graph keeps a landscape shape and stays readable.
+const OBS_SUB_GAP = 36;
+const OBS_WRAP_MIN_HEIGHT = 900;
+const OBS_WRAP_RATIO = 1.5;
 
 function colX(index, widths) {
   let x = MARGIN_X;
@@ -29,6 +34,33 @@ function stackColumn(nodes, x, gap = ROW_GAP, yStart = MARGIN_Y) {
     y += (node.height ?? 48) + gap;
   }
   return { height: y + MARGIN_Y, width: maxW };
+}
+
+function columnHeight(nodes, gap = ROW_GAP) {
+  return nodes.reduce((sum, node) => sum + (node.height ?? 48) + gap, 0);
+}
+
+/**
+ * Split observation nodes into sub-columns, keeping concat order column-major.
+ * Only wraps when the stack is much taller than the simulation column, so
+ * typical policies keep a single observation column.
+ * @param {Array<{ height?: number }>} obsNodes
+ * @param {number} referenceHeight height of the simulation column
+ * @returns {Array<Array<object>>}
+ */
+export function wrapObsColumns(obsNodes, referenceHeight) {
+  const target = Math.max(referenceHeight, OBS_WRAP_MIN_HEIGHT);
+  const total = columnHeight(obsNodes);
+  if (obsNodes.length < 2 || total <= target * OBS_WRAP_RATIO) {
+    return [obsNodes];
+  }
+  const count = Math.min(obsNodes.length, Math.max(2, Math.round(total / target)));
+  const perColumn = Math.ceil(obsNodes.length / count);
+  const columns = [];
+  for (let i = 0; i < obsNodes.length; i += perColumn) {
+    columns.push(obsNodes.slice(i, i + perColumn));
+  }
+  return columns;
 }
 
 function laneRange(startCol, endCol, colWidths) {
@@ -99,34 +131,35 @@ function laneDescription(laneId, zh, { historyLength, hasLoopback }) {
   switch (laneId) {
     case 'sim':
       return zh
-        ? '每个控制周期从 MuJoCo 读取根位姿、角速度、关节角/速度，以及摇杆/键盘给出的速度指令。'
-        : 'Each control step reads root pose, angular velocity, joint angles/velocities from MuJoCo, plus the joystick/keyboard velocity command.';
+        ? '每个控制周期从 MuJoCo 读取根位姿、角速度 $\\omega$、关节角 $q$ 与关节速度 $\\dot q$，以及摇杆/键盘给出的速度指令 $(v_x, v_y, \\omega_z)$。'
+        : 'Each control step reads root pose, angular velocity $\\omega$, joint angles $q$ and velocities $\\dot q$ from MuJoCo, plus the joystick/keyboard velocity command $(v_x, v_y, \\omega_z)$.';
     case 'prep':
       return zh
-        ? '几何预处理：关节角减去默认站姿 q₀，得到相对关节角。'
-        : 'Geometric preprocessing: subtract the default pose q₀ to get relative joint angles.';
+        ? '几何预处理：关节角减去默认站姿 $q_0$，得到相对关节角 $q - q_0$。'
+        : 'Geometric preprocessing: subtract the default pose $q_0$ to get relative joint angles $q - q_0$.';
     case 'obs':
       if (hasLoopback) {
         return zh
-          ? '按训练时的顺序计算各观测项；虚线回环表示上一步的动作也作为本步观测。'
-          : 'Compute each observation term in training order; the dashed loop feeds the previous action back as an observation.';
+          ? '按训练时的顺序计算各观测项；虚线回环表示上一步的动作 $a_{t-1}$ 也作为本步观测。'
+          : 'Compute each observation term in training order; the dashed loop feeds the previous action $a_{t-1}$ back as an observation.';
       }
       return zh
         ? '按训练时的顺序计算各观测项。'
         : 'Compute each observation term in training order.';
     case 'policy':
       if (historyLength > 1) {
+        const stacked = `$\\hat a = \\pi([o_{t-${historyLength - 1}}, \\dots, o_t])$`;
         return zh
-          ? `观测项拼接成单帧向量，与最近 ${historyLength} 帧历史堆叠后送入 ONNX 策略网络推理。`
-          : `Concatenate the terms into one frame, stack the last ${historyLength} frames and run the ONNX policy.`;
+          ? `观测项拼接成单帧向量 $o_t$，与最近 ${historyLength} 帧历史堆叠后送入 ONNX 策略网络推理 ${stacked}。`
+          : `Concatenate the terms into one frame $o_t$, stack the last ${historyLength} frames and run the ONNX policy ${stacked}.`;
       }
       return zh
-        ? '观测项拼接成单帧向量，送入 ONNX 策略网络推理。'
-        : 'Concatenate the terms into one frame vector and run the ONNX policy.';
+        ? '观测项拼接成单帧向量 $o_t$，送入 ONNX 策略网络推理 $\\hat a = \\pi(o_t)$。'
+        : 'Concatenate the terms into one frame vector $o_t$ and run the ONNX policy $\\hat a = \\pi(o_t)$.';
     case 'output':
       return zh
-        ? '动作裁剪 → 目标关节角 q* = q₀ + s·a → 下发给电机执行。'
-        : 'Clip the action → target joint angle q* = q₀ + s·a → sent to the motors.';
+        ? '动作裁剪 $a = \\operatorname{clip}(\\hat a, \\pm c)$ → 目标关节角 $q^* = q_0 + s \\cdot a$ → 下发给电机执行。'
+        : 'Clip the action $a = \\operatorname{clip}(\\hat a, \\pm c)$ → target joint angle $q^* = q_0 + s \\cdot a$ → sent to the motors.';
     case 'scope':
       return zh
         ? '点击任意信号节点，在示波器中查看它的实时曲线。'
@@ -274,7 +307,11 @@ function buildHorizontalAtomicGraph(telemetry, zh, atomic) {
   if (prepNodes.length) {
     colWidths.push(Math.max(184, ...prepNodes.map((n) => n.width ?? 184)));
   }
-  colWidths.push(Math.max(208, ...obsNodes.map((n) => n.width ?? 208)));
+  const obsNodeWidth = Math.max(208, ...obsNodes.map((n) => n.width ?? 208));
+  const obsColumns = wrapObsColumns(obsNodes, columnHeight(simNodes));
+  colWidths.push(
+    obsColumns.length * obsNodeWidth + (obsColumns.length - 1) * OBS_SUB_GAP
+  );
   colWidths.push(200);
   if (hasHistory) {
     colWidths.push(HISTORY_WIDTH);
@@ -322,7 +359,11 @@ function buildHorizontalAtomicGraph(telemetry, zh, atomic) {
 
   const obsStartCol = col;
   const xObs = colX(col, colWidths);
-  const obsStack = stackColumn(obsNodes, xObs, ROW_GAP, yStart);
+  const obsStack = { height: 0 };
+  obsColumns.forEach((column, index) => {
+    const stack = stackColumn(column, xObs + index * (obsNodeWidth + OBS_SUB_GAP), ROW_GAP, yStart);
+    obsStack.height = Math.max(obsStack.height, stack.height);
+  });
   nodes.push(...obsNodes);
   for (const obs of obsNodes) {
     pushObsEdges(edges, obs, hasPrepRel);

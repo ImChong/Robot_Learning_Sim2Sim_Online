@@ -4,48 +4,48 @@ const OBS_META = {
     zh: '启动标志（常量 0）'
   },
   RootAngVelB: {
-    en: 'Root angular velocity in body frame (3)',
-    zh: '机体坐标系根角速度 (3)'
+    en: 'Root angular velocity in body frame $\\omega_b$ (3)',
+    zh: '机体坐标系根角速度 $\\omega_b$ (3)'
   },
   ProjectedGravityB: {
-    en: 'Gravity direction in body frame via quatApplyInv (3)',
-    zh: '四元数逆变换后的机体重力方向 (3)'
+    en: 'Gravity direction in body frame $g_b = R^\\top g$ (3)',
+    zh: '四元数逆变换后的机体重力方向 $g_b = R^\\top g$ (3)'
   },
   Command: {
-    en: 'Velocity command [vx, vy, yaw_rate] (3)',
-    zh: '速度指令 [vx, vy, 偏航角速度] (3)'
+    en: 'Velocity command $[v_x, v_y, \\omega_z]$ (3)',
+    zh: '速度指令 $[v_x, v_y, \\omega_z]$ (3)'
   },
   JointPos: {
-    en: 'Joint position history (relative to default if enabled)',
-    zh: '关节位置历史（若启用则为相对默认姿态）'
+    en: 'Joint position history ($q - q_0$ if relative joints are enabled)',
+    zh: '关节位置历史（若启用相对化则为 $q - q_0$）'
   },
   JointVel: {
-    en: 'Joint velocity history',
-    zh: '关节速度历史'
+    en: 'Joint velocity history $\\dot q$',
+    zh: '关节速度历史 $\\dot q$'
   },
   PrevActions: {
-    en: 'Previous clipped policy actions',
-    zh: '上一时刻裁剪后的策略动作'
+    en: 'Previous clipped policy actions $a_{t-1}$',
+    zh: '上一时刻裁剪后的策略动作 $a_{t-1}$'
   },
   ComplianceFlagObs: {
-    en: '[enabled, enabled×threshold, enabled×kp] (3)',
-    zh: '顺应性标志 [开关, 开关×阈值, 开关×kp] (3)'
+    en: 'Compliance flag $[e,\\ e\\,\\theta,\\ e\\,\\theta / 0.05]$, $e$ = enabled, $\\theta$ = threshold (3)',
+    zh: '顺应性标志 $[e,\\ e\\,\\theta,\\ e\\,\\theta / 0.05]$，$e$ 为开关，$\\theta$ 为阈值 (3)'
   },
   TrackingCommandObsRaw: {
-    en: 'Future ref root deltas + rot6d',
-    zh: '未来参考根位姿增量 + rot6d'
+    en: 'Future ref root deltas $\\Delta p$ + rot6d',
+    zh: '未来参考根位姿增量 $\\Delta p$ + rot6d'
   },
   TargetJointPosObs: {
-    en: 'Future target joint pos and error',
-    zh: '未来目标关节角与误差'
+    en: 'Future target joint pos $q^{\\mathrm{ref}}$ and error $q^{\\mathrm{ref}} - q$',
+    zh: '未来目标关节角 $q^{\\mathrm{ref}}$ 与误差 $q^{\\mathrm{ref}} - q$'
   },
   TargetRootZObs: {
-    en: 'Future reference root height (+0.035)',
-    zh: '未来参考根高度 (+0.035)'
+    en: 'Future reference root height $z^{\\mathrm{ref}} + 0.035$',
+    zh: '未来参考根高度 $z^{\\mathrm{ref}} + 0.035$'
   },
   TargetProjectedGravityBObs: {
-    en: 'Future reference body gravity',
-    zh: '未来参考机体重力方向'
+    en: 'Future reference body gravity $g_b^{\\mathrm{ref}} = R_{\\mathrm{ref}}^\\top g$',
+    zh: '未来参考机体重力方向 $g_b^{\\mathrm{ref}} = R_{\\mathrm{ref}}^\\top g$'
   }
 };
 
@@ -252,9 +252,7 @@ export function buildPolicyTelemetry(runner, demo, options = {}) {
   };
 
   const postprocess = {
-    formula: lang === 'zh'
-      ? 'target[i] = defaultJointPos[i] + actionScale[i] × clip(action[i])'
-      : 'target[i] = defaultJointPos[i] + actionScale[i] × clip(action[i])',
+    formula: '$q^*_i = q_{0,i} + s_i \\cdot \\operatorname{clip}(\\hat a_i, \\pm c)$',
     actionScaleSample: sampleArray(runner.actionScale, 4),
     defaultJointPosSample: sampleArray(runner.defaultJointPos, 4),
     targetSample: sampleArray(runner.target, 6),
