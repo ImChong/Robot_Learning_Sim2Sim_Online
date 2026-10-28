@@ -283,6 +283,12 @@ body {
   position: relative;
 }
 
+/* Vuetify 的 reset 把 html 设为 overflow-y: scroll，桌面端（非浮层滚动条）即使页面不溢出
+   也会在窗口右侧常驻一条空滚动条；改为 auto，只在内容真的超出视口时才出现。 */
+html {
+  overflow-y: auto;
+}
+
 body {
   background: var(--bg);
   color: var(--text);
