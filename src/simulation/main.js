@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { DragStateManager } from './utils/DragStateManager.js';
 import {
-  discardPreloadedPolicyAssets,
   downloadExampleScenesFolder,
   ensureSceneAssetsForPath,
   getPosition,
@@ -10,6 +9,7 @@ import {
   initialSceneAssetPrefixes,
   toMujocoPos,
   preloadPolicyAssets,
+  releasePolicyCaches,
   reloadScene,
   reloadPolicy
 } from './mujocoUtils.js';
@@ -267,6 +267,18 @@ export class MuJoCoDemo {
     this.alive = true;
   }
 
+  /**
+   * Warm the caches for a policy the user is about to pick (policy menu hover/focus):
+   * download its scene files into MEMFS and preload its JSON / ONNX session.
+   */
+  prefetchSceneAndPolicy(scenePath, policyPath, onnxPath) {
+    if (!this.mujoco) {
+      return;
+    }
+    preloadPolicyAssets(policyPath, onnxPath);
+    ensureSceneAssetsForPath(this.mujoco, scenePath ?? defaultScene).catch(() => {});
+  }
+
   applySceneView(view) {
     const cameraPos = view?.cameraPosition;
     const target = view?.target;
@@ -339,7 +351,7 @@ export class MuJoCoDemo {
     }
 
     await this.releasePolicyResources();
-    discardPreloadedPolicyAssets();
+    releasePolicyCaches();
 
     if (this.simulation) {
       this.simulation.free();

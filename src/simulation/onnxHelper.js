@@ -47,43 +47,95 @@ async function loadOnnxModel(modelPath, onProgress) {
     executionProviders: ['wasm'],
     graphOptimizationLevel: 'all'
   });
-  return { architecture, session };
+  return { architecture, session, byteLength: bytes.byteLength };
 }
-
-/** @type {{ path: string, promise: Promise<{ architecture: unknown, session: ort.InferenceSession }> } | null} */
-let preloadedModel = null;
 
 /**
- * Start loading a model ahead of ONNXModule.init() (e.g. while the MuJoCo scene downloads).
- * Only the most recent preload is kept; an unused one is released.
+ * Sessions of models released by a policy switch, or preloaded but not used yet, kept for
+ * reuse (least recently used first out, bounded by model size): switching back to a policy
+ * skips the download and session creation.
  */
-export function preloadOnnxModel(modelPath) {
-  if (!modelPath || preloadedModel?.path === modelPath) {
-    return;
+const MODEL_CACHE_MAX_BYTES = 64 * 1024 * 1024;
+const modelCache = new Map();
+/** Loads started by preloadOnnxModel() that no ONNXModule has taken yet. */
+const pendingModels = new Map();
+/** Bumped by releaseCachedOnnxModels() so loads finishing after a teardown are dropped. */
+let cacheEpoch = 0;
+
+function cacheOnnxModel(modelPath, model) {
+  const previous = modelCache.get(modelPath);
+  modelCache.delete(modelPath);
+  if (previous && previous.session !== model.session) {
+    releaseOnnxSession(previous.session);
   }
-  discardPreloadedOnnxModel();
-  const promise = loadOnnxModel(modelPath);
-  // Errors resurface when ONNXModule.init() retries without the preload.
-  promise.catch(() => {});
-  preloadedModel = { path: modelPath, promise };
+  modelCache.set(modelPath, model);
+  let total = 0;
+  for (const entry of modelCache.values()) {
+    total += entry.byteLength;
+  }
+  for (const [path, entry] of modelCache) {
+    if (total <= MODEL_CACHE_MAX_BYTES || entry === model) {
+      break;
+    }
+    modelCache.delete(path);
+    total -= entry.byteLength;
+    releaseOnnxSession(entry.session);
+  }
 }
 
-export function discardPreloadedOnnxModel() {
-  if (!preloadedModel) {
-    return;
-  }
-  const { promise } = preloadedModel;
-  preloadedModel = null;
-  promise.then(({ session }) => releaseOnnxSession(session), () => {});
+function takeCachedOnnxModel(modelPath) {
+  const model = modelCache.get(modelPath) ?? null;
+  modelCache.delete(modelPath);
+  return model;
 }
 
-function takePreloadedOnnxModel(modelPath) {
-  if (preloadedModel?.path !== modelPath) {
+function takePendingOnnxModel(modelPath) {
+  const promise = pendingModels.get(modelPath);
+  if (!promise) {
     return null;
   }
-  const { promise } = preloadedModel;
-  preloadedModel = null;
+  pendingModels.delete(modelPath);
+  // On failure ONNXModule.init() loads again, surfacing the error.
   return promise.catch(() => null);
+}
+
+/** Release every cached and pending session (e.g. when the host demo is torn down). */
+export function releaseCachedOnnxModels() {
+  cacheEpoch += 1;
+  pendingModels.clear();
+  for (const { session } of modelCache.values()) {
+    releaseOnnxSession(session);
+  }
+  modelCache.clear();
+}
+
+/**
+ * Start loading a model (download + session) ahead of ONNXModule.init(), e.g. while the
+ * MuJoCo scene downloads or when the user hovers a policy. If no module takes it, the
+ * result goes to the session cache.
+ */
+export function preloadOnnxModel(modelPath) {
+  if (!modelPath || modelCache.has(modelPath) || pendingModels.has(modelPath)) {
+    return;
+  }
+  const epoch = cacheEpoch;
+  const promise = loadOnnxModel(modelPath);
+  pendingModels.set(modelPath, promise);
+  promise.then((model) => {
+    if (pendingModels.get(modelPath) !== promise) {
+      // Taken by ONNXModule.init(), or dropped by a teardown.
+      if (epoch !== cacheEpoch) {
+        releaseOnnxSession(model.session);
+      }
+      return;
+    }
+    pendingModels.delete(modelPath);
+    cacheOnnxModel(modelPath, model);
+  }, () => {
+    if (pendingModels.get(modelPath) === promise) {
+      pendingModels.delete(modelPath);
+    }
+  });
 }
 
 export class ONNXModule {
@@ -105,11 +157,13 @@ export class ONNXModule {
    * @param {(ratio: number) => void} [onProgress] ratio in [0,1] for download + WASM session init
    */
   async init(onProgress) {
-    const preloaded = await takePreloadedOnnxModel(this.modelPath);
-    const { architecture, session } = preloaded ?? await loadOnnxModel(this.modelPath, onProgress);
+    const model = takeCachedOnnxModel(this.modelPath)
+      ?? await takePendingOnnxModel(this.modelPath)
+      ?? await loadOnnxModel(this.modelPath, onProgress);
     onProgress?.(1);
-    this.architecture = architecture;
-    this.session = session;
+    this._model = model;
+    this.architecture = model.architecture;
+    this.session = model.session;
 
     this.inKeys = this.metaData["in_keys"];
     this.outKeys = this.metaData["out_keys"];
@@ -122,8 +176,12 @@ export class ONNXModule {
     console.log("outputNames", this.session.outputNames);
   }
 
+  /** Hand the session back to the model cache; releaseCachedOnnxModels() frees it. */
   async release() {
-    await releaseOnnxSession(this.session);
+    if (this._model) {
+      cacheOnnxModel(this.modelPath, this._model);
+    }
+    this._model = null;
     this.session = null;
   }
 

@@ -1,5 +1,5 @@
 <mujoco model="g1_29dof_rev_1_0">
-  <compiler angle="radian" meshdir="./meshes/" autolimits="true"/>
+  <compiler angle="radian" meshdir="assets" autolimits="true"/>
   <option timestep="0.005" solver="Newton"/>
 
   <default>

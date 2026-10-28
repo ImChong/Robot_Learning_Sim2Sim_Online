@@ -89,6 +89,27 @@ export async function fetchTextWithProgress(url, onProgress) {
   return new TextDecoder('utf-8').decode(bytes);
 }
 
+const textCache = new Map();
+
+/**
+ * Like fetchTextWithProgress, but each URL is fetched once per page session, so small config
+ * files (policy / scene / motion index JSON) cost no round trip when switching policies again.
+ * @param {string} url
+ * @param {(ratio: number) => void} [onProgress]
+ * @returns {Promise<string>}
+ */
+export function fetchTextCached(url, onProgress) {
+  let promise = textCache.get(url);
+  if (promise) {
+    promise.then(() => onProgress?.(1), () => {});
+    return promise;
+  }
+  promise = fetchTextWithProgress(url, onProgress);
+  textCache.set(url, promise);
+  promise.catch(() => textCache.delete(url));
+  return promise;
+}
+
 /**
  * Track parallel downloads: each task reports local 0..1; weights should sum to 1.
  * @param {number[]} weights

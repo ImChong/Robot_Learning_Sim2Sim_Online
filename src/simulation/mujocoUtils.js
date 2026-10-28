@@ -2,11 +2,12 @@ import * as THREE from 'three';
 import { Reflector } from './utils/Reflector.js';
 import { REFLECTION_QUALITY_PRESETS } from './reflectionQuality.js';
 import { PolicyRunner } from './policyRunner.js';
-import { discardPreloadedOnnxModel, preloadOnnxModel } from './onnxHelper.js';
+import { preloadOnnxModel, releaseCachedOnnxModels } from './onnxHelper.js';
 import { toFloatArray } from './utils/math.js';
+import { disposeObject3D } from './hostDemoLifecycle.js';
 import {
   createWeightedProgressReporter,
-  fetchTextWithProgress,
+  fetchTextCached,
   gunzipBytes,
   isGzipData,
   readResponseBodyWithProgress
@@ -81,23 +82,19 @@ function parseMotionIndex(payload) {
 /** Motion names loaded before first interactive frame (others load on demand). */
 const INITIAL_TRACKING_MOTION_NAMES = ['default'];
 
+function motionIndexBaseUrl(index, motionsUrl) {
+  if (!index.basePath) {
+    return new URL('.', motionsUrl);
+  }
+  return new URL(index.basePath.endsWith('/') ? index.basePath : `${index.basePath}/`, motionsUrl);
+}
+
 async function fetchMotionClip(entry, baseUrl, onProgress) {
   if (!entry?.file || !entry?.name) {
     throw new Error('Motion index entries must include a name and file path.');
   }
   const clipUrl = new URL(entry.file, baseUrl).toString();
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 30000);
-  try {
-    const response = await fetch(clipUrl, { signal: controller.signal });
-    if (!response.ok) {
-      throw new Error(`Failed to load motion clip from ${clipUrl}: ${response.status}`);
-    }
-    const bytes = await readResponseBodyWithProgress(response, onProgress);
-    return JSON.parse(new TextDecoder('utf-8').decode(bytes));
-  } finally {
-    clearTimeout(timeoutId);
-  }
+  return JSON.parse(await fetchTextCached(clipUrl, onProgress));
 }
 
 async function loadMotionIndex(indexPayload, motionsUrl, onProgress, options = {}) {
@@ -107,12 +104,7 @@ async function loadMotionIndex(indexPayload, motionsUrl, onProgress, options = {
     return null;
   }
 
-  const basePath = index.basePath
-    ? (index.basePath.endsWith('/') ? index.basePath : `${index.basePath}/`)
-    : null;
-  const baseUrl = basePath
-    ? new URL(basePath, motionsUrl)
-    : new URL('.', motionsUrl);
+  const baseUrl = motionIndexBaseUrl(index, motionsUrl);
   const motions = {};
   const motionMeta = {};
   const catalog = [];
@@ -213,7 +205,14 @@ function sceneAssetExistsInFs(mujoco, relativePath) {
 
 export async function reloadScene(mjcf_path) {
   this.currentScenePath = mjcf_path;
-  this.scene.remove(this.scene.getObjectByName('MuJoCo Root'));
+  // Free the previous scene's GPU buffers, textures and reflector render targets; otherwise
+  // every policy switch leaks them and later switches/rendering get slower.
+  const previousRoot = this.scene.getObjectByName('MuJoCo Root');
+  this.scene.remove(previousRoot);
+  for (const reflector of this.reflectors ?? []) {
+    reflector.dispose?.();
+  }
+  disposeObject3D(previousRoot);
   const mujoco = this.mujoco;
   console.log('Loading scene:', mjcf_path);
 
@@ -252,35 +251,42 @@ export async function reloadScene(mjcf_path) {
   this.policyInitialState = null;
 }
 
-/** Policy JSON requested ahead of reloadPolicy(), see preloadPolicyAssets(). */
-let preloadedPolicyText = null;
-
 /**
- * Start fetching a policy's JSON and ONNX model (which also pulls in the ORT wasm
- * runtime) so they load while the MuJoCo runtime and scene are still loading.
+ * Start fetching a policy's JSON (and, for tracking policies, its motion index and eager clips)
+ * plus its ONNX model and ORT runtime, so they load while the MuJoCo scene is still loading.
  */
 export function preloadPolicyAssets(policyPath, onnxPath) {
-  if (policyPath && preloadedPolicyText?.path !== policyPath) {
-    const promise = fetchTextWithProgress(policyPath);
-    // Errors resurface when reloadPolicy() fetches again without the preload.
-    promise.catch(() => {});
-    preloadedPolicyText = { path: policyPath, promise };
-  }
   preloadOnnxModel(onnxPath);
-}
-
-export function discardPreloadedPolicyAssets() {
-  preloadedPolicyText = null;
-  discardPreloadedOnnxModel();
-}
-
-function takePreloadedPolicyText(policyPath) {
-  if (preloadedPolicyText?.path !== policyPath) {
-    return null;
+  if (!policyPath) {
+    return;
   }
-  const { promise } = preloadedPolicyText;
-  preloadedPolicyText = null;
-  return promise.catch(() => null);
+  // Errors resurface when reloadPolicy() requests the same files.
+  fetchTextCached(policyPath)
+    .then((text) => {
+      const motionsPath = JSON.parse(text)?.tracking?.motions_path;
+      if (!motionsPath) {
+        return null;
+      }
+      const motionsUrl = new URL(motionsPath, window.location.href);
+      return fetchTextCached(motionsUrl.toString()).then((indexText) => {
+        const index = parseMotionIndex(JSON.parse(indexText));
+        if (!index) {
+          return;
+        }
+        const baseUrl = motionIndexBaseUrl(index, motionsUrl);
+        for (const entry of index.motions.map(normalizeMotionEntry)) {
+          if (entry?.file && INITIAL_TRACKING_MOTION_NAMES.includes(entry.name)) {
+            fetchTextCached(new URL(entry.file, baseUrl).toString()).catch(() => {});
+          }
+        }
+      });
+    })
+    .catch(() => {});
+}
+
+/** Drop preloaded and cached ONNX sessions (host demo teardown). */
+export function releasePolicyCaches() {
+  releaseCachedOnnxModels();
 }
 
 export async function reloadPolicy(policy_path, options = {}) {
@@ -301,10 +307,9 @@ export async function reloadPolicy(policy_path, options = {}) {
     }
   };
 
-  const policyJsonText = await takePreloadedPolicyText(policy_path)
-    ?? await fetchTextWithProgress(policy_path, (r) => {
-      reportInit(0.12 * r);
-    });
+  const policyJsonText = await fetchTextCached(policy_path, (r) => {
+    reportInit(0.12 * r);
+  });
   const config = JSON.parse(policyJsonText);
   if (options?.onnxPath) {
     config.onnx = { ...(config.onnx ?? {}), path: options.onnxPath };
@@ -315,7 +320,7 @@ export async function reloadPolicy(policy_path, options = {}) {
     trackingConfig = { ...config.tracking };
     if (trackingConfig.motions_path && !trackingConfig.motions) {
       const motionsUrl = new URL(trackingConfig.motions_path, window.location.href);
-      const motionIndexText = await fetchTextWithProgress(motionsUrl.toString(), (r) => {
+      const motionIndexText = await fetchTextCached(motionsUrl.toString(), (r) => {
         reportInit(0.12 + 0.1 * r);
       });
       const payload = JSON.parse(motionIndexText);
@@ -523,7 +528,9 @@ export async function loadSceneFromURL(mujoco, filename, parent) {
         geometry.setAttribute('position', new THREE.BufferAttribute(vertex_buffer, 3));
         geometry.setAttribute('normal', new THREE.BufferAttribute(normal_buffer, 3));
         geometry.setAttribute('uv', new THREE.BufferAttribute(uv_buffer, 2));
-        geometry.setIndex(Array.from(triangle_buffer));
+        // Same index type three.js would pick, copied natively instead of via a JS array.
+        const IndexArray = model.mesh_vertnum[meshID] > 65535 ? Uint32Array : Uint16Array;
+        geometry.setIndex(new THREE.BufferAttribute(new IndexArray(triangle_buffer), 1));
         meshes[meshID] = geometry;
       } else {
         geometry = meshes[meshID];
@@ -583,12 +590,16 @@ export async function loadSceneFromURL(mujoco, filename, parent) {
     const materialOptions = {
       color: new THREE.Color(color[0], color[1], color[2]),
       transparent: alpha < 1.0,
-      opacity: alpha,
-      specularIntensity: matId !== -1 ? model.mat_specular[matId] : undefined,
-      reflectivity: matId !== -1 ? model.mat_reflectance[matId] : undefined,
-      roughness: roughnessFromShininess,
-      metalness: matId !== -1 ? model.mat_metallic[matId] : undefined
+      opacity: alpha
     };
+    // Only pass material values that exist: undefined ones are ignored by three.js anyway,
+    // but each one logs a console warning (4 per geom per scene load).
+    if (matId !== -1) {
+      materialOptions.specularIntensity = model.mat_specular[matId];
+      materialOptions.reflectivity = model.mat_reflectance[matId];
+      materialOptions.roughness = roughnessFromShininess;
+      materialOptions.metalness = model.mat_metallic[matId];
+    }
     if (texture) {
       materialOptions.map = texture;
     }
@@ -812,25 +823,15 @@ function configureJointMappings(demo, jointNames) {
   demo.defaultJposPolicy.fill(0.0);
 }
 
+/** Scene files being downloaded, per MuJoCo instance (each has its own MEMFS). */
+const pendingSceneAssets = new WeakMap();
+
 export async function downloadExampleScenesFolder(mujoco, onProgress, options = {}) {
   const prefixes = options.prefixes ?? null;
   const listUrl = './examples/scenes/files.json';
-  const listController = new AbortController();
-  const listTimeoutId = setTimeout(() => listController.abort(), 30000);
-  let listResponse;
-  try {
-    listResponse = await fetch(listUrl, { signal: listController.signal });
-    if (!listResponse.ok) {
-      throw new Error(`Failed to load scene file list: ${listResponse.status}`);
-    }
-  } finally {
-    clearTimeout(listTimeoutId);
-  }
-  const allFiles = JSON.parse(
-    new TextDecoder('utf-8').decode(await readResponseBodyWithProgress(listResponse, (r) => {
-      onProgress?.(0.02 * r);
-    }))
-  );
+  const allFiles = JSON.parse(await fetchTextCached(listUrl, (r) => {
+    onProgress?.(0.02 * r);
+  }));
 
   const scopedFiles = filterSceneFilesByPrefixes(allFiles, prefixes);
   const filesToDownload = scopedFiles.filter((rel) => !sceneAssetExistsInFs(mujoco, rel));
@@ -861,21 +862,38 @@ export async function downloadExampleScenesFolder(mujoco, onProgress, options = 
     mujoco.FS.writeFile('/working/' + relativePath, data);
   };
 
-  await Promise.all(
-    filesToDownload.map(async (rel, i) => {
-      const url = base + rel;
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000);
-      try {
-        const buf = await fetchSceneAssetBytes(rel, url, controller.signal, (r) => reporter(i, r));
-        if (rel.match(/\.(png|stl|skn)$/i)) {
-          writeToFs(rel, buf);
-        } else {
-          writeToFs(rel, new TextDecoder('utf-8').decode(buf));
-        }
-      } finally {
-        clearTimeout(timeoutId);
+  const downloadToFs = async (rel, onFileProgress) => {
+    const url = base + rel;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
+    try {
+      const buf = await fetchSceneAssetBytes(rel, url, controller.signal, onFileProgress);
+      if (rel.match(/\.(png|stl|skn)$/i)) {
+        writeToFs(rel, buf);
+      } else {
+        writeToFs(rel, new TextDecoder('utf-8').decode(buf));
       }
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  };
+
+  // A prefetch (policy menu hover) and the actual switch may want the same files: share the
+  // in-flight request, and retry on our own if the shared one failed.
+  let pending = pendingSceneAssets.get(mujoco);
+  if (!pending) {
+    pending = new Map();
+    pendingSceneAssets.set(mujoco, pending);
+  }
+  await Promise.all(
+    filesToDownload.map((rel, i) => {
+      const inFlight = pending.get(rel);
+      if (inFlight) {
+        return inFlight.then(() => reporter(i, 1), () => downloadToFs(rel, (r) => reporter(i, r)));
+      }
+      const task = downloadToFs(rel, (r) => reporter(i, r)).finally(() => pending.delete(rel));
+      pending.set(rel, task);
+      return task;
     })
   );
   onProgress?.(1);

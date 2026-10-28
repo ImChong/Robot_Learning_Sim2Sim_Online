@@ -41,6 +41,7 @@ npm run dev
 - 将 MJCF 文件放到：`public/examples/scenes/<robot>/<robot>.xml`
 - 将该 MJCF 依赖的 mesh / texture 一并放到同目录
 - 把所有文件路径追加到 `public/examples/scenes/files.json`，这样加载器才能在 wasm 文件系统中预加载到 `/working/`
+- 多个场景共用同一套网格时，把这些 XML 放在同一目录并使用相同的 `meshdir`（例如 `g1_amp/scene_g1.xml` 与 `g1_amp/g1_tracking.xml`）：MuJoCo 按文件路径缓存网格编译结果，路径相同才能在策略切换时复用下载和编译
 
 ### 2）添加 policy 配置与 ONNX 模型
 - 新建：`public/examples/checkpoints/<robot>/tracking_policy.json`

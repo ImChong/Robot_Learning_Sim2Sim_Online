@@ -167,7 +167,16 @@
           :disabled="state !== 1"
           data-test="policy-select"
           @update:modelValue="onPolicyChange"
-        ></v-select>
+        >
+          <template #item="{ props: itemProps, item }">
+            <v-list-item
+              v-bind="itemProps"
+              @mouseenter="schedulePolicyPrefetch(item.value)"
+              @focus="schedulePolicyPrefetch(item.value)"
+              @mouseleave="cancelPolicyPrefetch"
+            ></v-list-item>
+          </template>
+        </v-select>
 
         <div v-if="isParkourPolicy" class="parkour-controls mt-4">
           <v-alert
@@ -827,6 +836,9 @@ import {
   scheduleIosPolicyBoot
 } from '@/utils/iosPolicyBoot.js';
 
+// 鼠标在策略下拉项上停留这么久才预取，快速划过时不浪费流量。
+const POLICY_PREFETCH_DELAY_MS = 100;
+
 const translations = {
   en: {
     mobileModeAlert: 'Mobile mode is enabled. The control panel has been compacted and docked to the bottom for touch interaction.',
@@ -1201,7 +1213,7 @@ export default {
         descriptionKey: 'policyDescription',
         policyPath: './examples/checkpoints/g1/tracking_policy_latest.json',
         onnxPath: './examples/checkpoints/g1/tracking/policy_latest.onnx',
-        scenePath: 'g1/g1.xml'
+        scenePath: 'g1_amp/g1_tracking.xml'
       },
       {
         value: 'g1-perceptive-bfm',
@@ -1824,6 +1836,9 @@ export default {
       this.syncHostDemoUiState(selected);
     },
     syncHostDemoUiState(selected) {
+      if (selected.value === MICRODUCK_POLICY_VALUE) {
+        this.warmMicroduckStateModels();
+      }
       this.reapplyCustomMotions();
       this.availableMotions = this.getAvailableMotions();
       this.currentMotion = this.demo.params.current_motion ?? this.availableMotions[0] ?? null;
@@ -2639,6 +2654,9 @@ export default {
         if (this.isAmpPolicy || this.isMicroduckPolicy) {
           this.resetAmpCommandSliders();
         }
+        if (this.isMicroduckPolicy) {
+          this.warmMicroduckStateModels();
+        }
         this.policyLabel = selected.policyPath?.split('/').pop() ?? this.policyLabel;
         this.reapplyCustomMotions();
         this.availableMotions = this.getAvailableMotions();
@@ -2697,6 +2715,33 @@ export default {
         this.microduckReturnTimer = setTimeout(poll, MICRODUCK_AUTO_NEXT_POLL_MS);
       };
       this.microduckReturnTimer = setTimeout(poll, MICRODUCK_AUTO_NEXT_POLL_MS);
+    },
+    // 下拉项悬停/聚焦时预取该策略的场景网格与 ONNX，点击切换时多半已就绪。
+    schedulePolicyPrefetch(value) {
+      this.cancelPolicyPrefetch();
+      this.policyPrefetchTimer = setTimeout(() => {
+        this.policyPrefetchTimer = null;
+        this.prefetchPolicy(value);
+      }, POLICY_PREFETCH_DELAY_MS);
+    },
+    cancelPolicyPrefetch() {
+      clearTimeout(this.policyPrefetchTimer);
+      this.policyPrefetchTimer = null;
+    },
+    prefetchPolicy(value) {
+      const policy = this.policies.find((item) => item.value === value);
+      if (!policy || policy.isExternalDemo || value === this.currentPolicy || this.state !== 1) {
+        return;
+      }
+      this.demo?.prefetchSceneAndPolicy(policy.scenePath, policy.policyPath, policy.onnxPath);
+    },
+    // 进入 Microduck 后在后台预热其余状态的策略与 ONNX session，状态机切换时直接复用。
+    warmMicroduckStateModels() {
+      for (const state of MICRODUCK_STATES) {
+        if (state.value !== this.microduckState) {
+          this.demo?.prefetchSceneAndPolicy(MICRODUCK_SCENE_PATH, state.policyPath, state.onnxPath);
+        }
+      }
     },
     // 状态机按钮：同一个 Microduck 下拉项内热切换策略，只重载 ONNX，不重载机器人网格。
     async switchMicroduckState(value) {
@@ -3156,6 +3201,7 @@ export default {
   mounted() {
     this.customMotions = {};
     this.parkourFallbackTimer = null;
+    this.policyPrefetchTimer = null;
     this.parkourHardTimer = null;
     this.parkour_message_listener = (event) => this.handleParkourMessage(event);
     window.addEventListener('message', this.parkour_message_listener);
@@ -3220,6 +3266,7 @@ export default {
     }
     this.clearMicroduckReturnTimer();
     this.clearParkourLoadTimers();
+    this.cancelPolicyPrefetch();
     if (this.parkour_message_listener) {
       window.removeEventListener('message', this.parkour_message_listener);
     }
